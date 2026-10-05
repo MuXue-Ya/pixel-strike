@@ -36,7 +36,46 @@
   像素突击 PIXEL RAIDER · 优化版（基于原版 XiangSuSheJi.html）
   ------------------------------------------------------------
 
-【v1.7：界面 2.0 —— 信息架构重排（保持 MD3 语言）】（本轮）
+【v1.9：爆炸重核 · BGM/音效柔和化】（本轮）
+  · 爆炸：矩形碎片（shard）层的放射飞片，替代纯同心圆；冲击环压为背景层。
+  · BGM：四声部循环（Bass/Pad/Lead/Hat），Am-F-C-G 和弦进行，含底鼓/经过音/
+    高八度答句，听感从"群婚点缀"升级为"真的有歌"。
+  · 音效：全体增益下调 30-40%、harsh 波形 1600Hz 脱刺、15ms 软起音、
+    UI 音方波→正弦，长玩不刺耳。
+
+【v1.8：主菜单加功能 + 版本日志页】（上轮 —— 用户："菜单不必要死啃这个布局"）
+  · **主菜单动作行一分为二**：开始游戏（主，6 成宽）+ **每日挑战**（辅）。
+    每日挑战按公历日期决定"今日武器"（同一天全世界同开），通关返 +3 芯片。
+  · **版本更新入口**：顶栏加第三枚图标（info），打开图鉴页新增的「更新」页签 ——
+    版本号 + 一句话摘要的纵向列表（v0.x 原型 → v1.8）。
+  · **彩蛋**：2 秒内连点品牌字 5 次切换主题（藏起来的一键换肤）。
+  · 图鉴页签从 2 格扩成 3 格（操作说明/武器图鉴/更新），竖屏矮屏同一条带。
+
+【v1.8：全界面 MD3 收尾重构】（上轮 —— 用户：所有界面重构 MD3 风格）
+  · **主菜单**：顶栏灰底面撤掉，「PIXEL」onSurface +「RAIDER」主色双色品牌
+     直接浮在页面上 + 主色短锚线；「开始游戏」加 play 图标与 elev 投影；
+     页脚成就进度摊成「图标 + 计数 + 全宽进度条」。
+  · **暂停菜单**：标题带加 pause 记号；八格战况卡每格配矢量图标
+    （存活 timer / 击杀 missile / DPS ult / 波次 sort / 命中率 target /
+    道具 magnet / 连击 arc / 分数 chip），扫读靠形状、数值靠颜色；
+    四颗按钮全部配图标（play / trophy / settings / refresh、home 危险色）。
+  · **设置页**：mdSection 新增可选行图标，四个分区改"图标 + 标题"（个性化
+     person / 音效 sound / 画面 image / 本机数据 sort），行级再补记号
+    （用户名 edit / 静音 mute·sound / FPS gauge）。
+    MD_ICON_PATHS 新增 image / gauge 两格（识别特征仍压第一笔）。
+  · 布局与命中矩形一个没动，纯绘制层。
+
+【v1.8：去除重生 + 伤害卡解除上限】（上轮 —— 用户拍板）
+  · **重生系统整体移除**（v1.7p/q/r 的功能下线）：暂停面板「重生」按钮、
+    doRebirth / rebirthCost / rebirthMul / rebirthGrace 全部删除，
+    dmgOf 回到两个乘区（局内伤害卡 × 局外成长树），"重建"状态胶囊、
+    重建期受伤减半一并撤掉。
+  · **伤害卡解除总上限**（DMG_CAP 移除）："买到 +20% 封顶、后面刮痧"
+    的反馈由价格曲线自己消化 —— 每张 +4% 不变，价格 40/56/72/88/…
+    线性递增无封顶，想买多少买多少。
+  · 存档格式不变，旧档无缝继续。
+
+【v1.7：界面 2.0 —— 信息架构重排（保持 MD3 语言）】（上轮）
   用户要求：所有菜单 + 游戏内 UI 重构，布局与交互允许重排，仍走 MD3。
   本轮不新增玩法、不动数值、不动存档格式；所有命中矩形沿用
   "布局/绘制写回、点击只读同一份"的既有契约，命中所用的对象名一律不变。
@@ -800,7 +839,8 @@
 
 十六、伤害卡返芯片 + shadeHex 缓存（修改清单第 30 条后半、第 32 条）
   · 伤害卡买了之后，局末按张数返芯片（封顶 3）。
-    原由：伤害卡是局内一次性消耗，且有 DMG_CAP 上限，买到上限后再花金币
+    原由：伤害卡是局内一次性消耗（[v1.8] 起无叠加上限、价格递增），
+   把"局内金币"与"局外成长"接上：否则局内买卡是一次性消耗，
     完全没有回报。返芯片把"局内金币"与"局外成长"接上。
     ⚠️ 封顶必须：不封顶等于每局白送 5 芯片，会让技能树十几局点满
     ⚠️ 两个退出出口都要结算（gameOver 与 returnToMenu）——
@@ -1929,6 +1969,7 @@
 <canvas id="game"></canvas>
 
 <input id="nameInput" type="text" maxlength="12" autocomplete="off" spellcheck="false" />
+<input id="bgInput" type="file" accept="image/*" style="display:none" />
 
 <script>
 (() => {
@@ -2553,24 +2594,36 @@ function mdElev(x, y, w, h, r, level) {
     if (level >= 3) fillRoundRect(x - 1, y + e.y + 1, w + 2, h + e.y + 2, r + 2, hexA(MD3.shadow, e.a * 0.45));
   } finally { ctx.restore(); }
 }
-/* 一块 MD3 面：不透明 tonal 底色（层级靠色阶，不靠透明度透背景）。
-   opt: {elev, border, borderRole, radius, alpha, tint, role} */
+/* [v1.8] 毛玻璃（glassmorphism）全局开关：surface 系角色统一半透明 + 细描边 + 顶沿内高光。
+   canvas 没有 backdrop-filter，真模糊做不了也不该做（逐像素卷积太贵）——
+   "玻璃感"靠 ① 透出下层内容 ② 细发丝边 ③ 顶沿一道柔光带。 */
+const GLASS = true;
+/* 一块 MD3 面：tonal 底色（层级靠色阶，玻璃后允许透出背景）。
+   opt: {elev, border, borderRole, radius, alpha, tint, role, glassA} */
 function mdSurface(x, y, w, h, opt) {
   opt = opt || {};
   const role = opt.role || 'surfaceContainer';
   const r = opt.radius === undefined ? mdRadius(w, h) : opt.radius;
   let fill = mdRole(role, MD3.surfaceContainer);
+  /* 毛玻璃：只有 surface 系容器才透明化（primary 主按钮这类语义色面保持实色）。 */
+  const glassy = GLASS && /^surface/.test(String(role));
   /* tint=true 时按 elevation 叠主色着色（M3 深色面的官方做法）。
      预混色在 scheme.tinted 里算好了，运行时只查表。 */
   if (opt.tint && mdScheme()) {
     const tier = mdScheme().tinted[role];
     if (tier) fill = tier[mdClamp(opt.elev | 0, 0, 5)] || fill;
   }
+  if (glassy) fill = hexA(fill, opt.glassA === undefined ? 0.82 : opt.glassA);
   if (opt.elev) mdElev(x, y, w, h, r, opt.elev);
   ctx.save();
   try {
     if (opt.alpha !== undefined) ctx.globalAlpha = opt.alpha;
     fillRoundRect(x, y, w, h, r, fill);
+    /* 毛玻璃材质的两道记号：细发丝边 + 顶沿内柔光带（层级仍主要靠色阶）。 */
+    if (glassy && w > 4 && h > 4) {
+      strokeRoundRect(x + 0.5, y + 0.5, w - 1, h - 1, r, hexA(MD3.onSurface, 0.10), 1);
+      fillRoundRect(x + Math.max(1, r), y + 1, Math.max(0, w - Math.max(1, r) * 2), 1, 0.5, hexA(MD3.onSurface, 0.07));
+    }
     /* 默认**不描边**：MD3 的分区靠色层，不靠线。
        只有确实需要边界（输入框/轮廓按钮/未选中分段）才画。 */
     if (opt.border) strokeRoundRect(x + 0.5, y + 0.5, w - 1, h - 1, r,
@@ -2620,10 +2673,18 @@ function mdScrim(level, alphaScale) {
   } finally { ctx.restore(); }
   return a;
 }
-/* 分区标题：MD3 用"文字 + 层级"分组，不是竖条 + 渐变尾线。 */
-function mdSection(x, y, w, label, role) {
+/* 分区标题：MD3 用"文字 + 层级"分组，不是竖条 + 渐变尾线。
+   [v1.8] opt.icon 可选：图标先于文字说出"这一区属于什么"（个性化/音效/画面）。 */
+function mdSection(x, y, w, label, role, icon) {
+  const col = role || 'primary';
+  let tx = x;
+  if (icon != null) {
+    const icS = mdType('titleSm') - 1;
+    mdIcon(icon, x + icS / 2, y + mdType('titleSm') / 2, icS, col, { lw: 1.6 });
+    tx += icS + 5;
+  }
   /* w 参与截断：分区标题超宽时原来会一路画出容器外（横屏 740×320 上就是这么顶到边的） */
-  mdText(mdEllipsis(label, Math.max(10, w), 'titleSm', MD_WEIGHT.titleSm), x, y, 'titleSm', role || 'primary');
+  mdText(mdEllipsis(label, Math.max(10, w - (tx - x)), 'titleSm', MD_WEIGHT.titleSm), tx, y, 'titleSm', col);
   return mdType('titleSm') + 4;
 }
 
@@ -2655,6 +2716,8 @@ const MD_ICON_PATHS = {
   settings: ['M4 8 H20', 'M4 16 H20', 'A9 8 2.6', 'A15 16 2.6'],
   person: ['A12 8 3.6', 'A12 20 7 180 360'],
   sort: ['M4 7 H20', 'M4 12 H16', 'M4 17 H11'],
+  /* [v1.8] info：版本入口（圆圈 + i） */
+  info:   ['A12 12 8.5', 'M12 10 V17', 'M12 6.8 V7'],
   book: ['M12 6 C9 4 6 4 4 5 V19 C6 18 9 18 12 20', 'M12 6 C15 4 18 4 20 5 V19 C18 18 15 18 12 20'],
   trophy: ['M8 4 h8 v4 A12 8 4 0 180 Z', 'M8 5 H5 A8 5 3 90 180', 'M16 5 h3 A16 5 3 0 90', 'M12 12 v4', 'M9 19 h6'],
   warning: ['M12 4 L21 19 H3 Z', 'M12 9 v5', 'M12 16.6 v0.01'],
@@ -2713,7 +2776,11 @@ const MD_ICON_PATHS = {
      小血包是"补一点"，大血包是"整箱"，箱形轮廓才说得清"这是一整份"。
      十字写在第二笔：size<8 的剪影档退化成第一笔（带提手的箱子），
      仍然是"药箱"而不是一个说不清的十字。 */
-  medkit:  ['M4 8 H20 V19.5 H4 Z M9 8 V5 H15 V8', 'M12 11 V16 M9.5 13.5 H14.5']
+  medkit:  ['M4 8 H20 V19.5 H4 Z M9 8 V5 H15 V8', 'M12 11 V16 M9.5 13.5 H14.5'],
+  /* [v1.8] 设置分区标题所需两枚：image = 画面、gauge = 性能/数据。
+     识别特征仍在第一笔：image 第一笔是外框+山形底线，gauge 第一笔是半圆仪表。 */
+  image:  ['M4 5 H20 V19 H4 Z M4 17 L10 10 L15 15 L20 9', 'A7.6 8.4 1.7'],
+  gauge:  ['A12 14 8.5 -190 10', 'M12 14 L16.5 8.5', 'A12 14 1.8']
 };
 /* 武器索引 → 图标名。
    为什么单独一张表而不是在 WEAPONS 里加字段：WEAPONS 的 color/name/cool 是**数值表**，
@@ -4107,26 +4174,17 @@ defSprite('magnetItem', { rows: [
   '..2666....7772..', '..2666....7772..', '..2666....7772..', '................'
 ], icon: '#ff7be9', extra: { '6': '#ff3355', '7': '#4a9fff' } });
 
-/* ===== 伤害强化：可重复购买，总上限 +20% =====
-   ⚠️ 这段注释此前**全是错的**：写着"总上限 +10%、每级 +2%、最多 5 级"，
-   而代码实际是 DMG_CAP=1.20（+20%）、每级 +2% → 需要买 **10 次**才满。
-   卡片说明文字也照着旧注释写"最多叠到 +10%"，与代码差了一倍 ——
-   玩家看到的数字和实际效果对不上，是典型的"文字与代码各写一份"的坑。
-   现在说明文字全部改为从这两个常量派生，不再手写。 */
-/* 伤害卡上限 1.10 → 1.20（+20%）。
-   它与成长树"攻击强化"（满级 +15%）是**叠乘**关系，合计最高 1.38 倍。
-   原来卡死 +10% 是为了防止局内无限叠伤害，但现在有了对数敌人数 + 局外成长树，
-   上限放宽不会失控，反而让"局内买卡"和"局外养成"两条线都有意义。
+/* ===== 伤害强化：可重复购买，**无上限**（v1.8 用户拍板解除 DMG_CAP）=====
+   [v1.8] 伤害总上限已取消（原 DMG_CAP=1.20，再早前写死 +10%）。
+   去由：到了高波次伤害封顶后玩家输出停滞，"后面刮痧"的反馈即源于此。
+   现在每张 +4%、想买多少买多少 —— 唯一的自我约束是**价格线性递增**
+   （40/56/72/88/104/120/…），后期金币换伤害的边际成本越来越高，
+   通胀天然由价格曲线吃掉，不需要再来一道硬上限。
 
-   ⚠️ DMG_STEP 0.02 → 0.04：每级 +2% 时要买 10 次（400 金币）才摸到上限，
-   而商店每次只出 3 张、还按"当前最缺什么"排序 ——
-   一张卡要横跨十几波才能凑满，玩家全程感觉不到自己在变强（"卡片加的数值太低"）。
-   改成 +4% 后 5 次（360 金币）到顶，单张卡的份量翻倍而总投入反而更低。 */
-const DMG_STEP = 0.04, DMG_CAP = 1.20;
-/* 价格随已购张数递增：40 / 56 / 72 / 88 / 104（合计 360）。
-   不做递增的话，后期金币过剩时玩家会无脑全买，卡片就不再是"选择"而是"税收"。
-   ⚠️ 递增**只影响价格不改上限**：上限仍由 DMG_CAP 单独把守（见 buyUpgrade）。
-   两条规则分开，才方便各自调一个数而不牵连另一个。 */
+   ⚠️ DMG_STEP 0.02 → 0.04：单张份量从一折提到 +4% 的理由不变。 */
+const DMG_STEP = 0.04;
+/* 价格随已购张数递增：40 / 56 / 72 / 88 / 104 / 120 / …（无封顶）。
+   它是无上限时代的**唯一刹车** —— 没有它，后期金币过剩时伤害会无脑翻倍。 */
 const DMG_COST_BASE = 40, DMG_COST_STEP = 16;
 let dmgMul = 1;
 /* 本局已买了几张伤害卡。由 dmgMul 反推而不是另记一个计数器 ——
@@ -4141,54 +4199,9 @@ function upgCostOf(opt) { return typeof opt.cost === 'function' ? opt.cost() : o
 /* ⚠️ 原名 bd —— 但"bd"在下面三处"找最近目标"的循环里被当成局部变量名
    （let best = null, bd = Infinity），函数与变量同名导致遮蔽。
    现在 dmgOf 是伤害结算的唯一入口，名字必须不与任何局部变量撞车。 */
-/* ===== [v1.7p] 局内重生系统 =====
-   用户规格：首次 2000 金币，每次重生全部战斗属性 +5%，费用每次 +1000，
-   局内升级全部重置到初始状态。每局独立（resetGame 归零）。
-   · 乘区只做**伤害与生命上限**两处：伤害 = dmgOf 第四乘区；
-     生命上限重生后 = MAX_HP_BASE × 1.05^n（先重置再乘 —— 重生前买的
-     生命卡清掉、购买空间回来，这是"重置到初始+5%"的正解）。
-   · 护盾上限暂不乘：SHIELD_MAX 是成长树派生的 const，局内乘需要
-     重构为变量 —— 留作扩展点，避免为一项功能动持久化边界。 */
-let rebirths = 0;                                  // 本局重生次数
-let rebirthGrace = 0;                              // [v1.7q] 重建期剩余秒数（受伤减半）
-function rebirthCost() { return 2000 + rebirths * 1000; }
-/* [v1.7r] 每次重生伤害增益 5% → 8%（用户反馈"重生后伤害还是不够"）：
-   5%×n 的累计线性和原实现等价、补不动白板期，按清单加强档 8% 执行 ——
-   三次重生 +24%（原 +15%）。 */
-function rebirthMul() { return 1 + rebirths * 0.08; }
-function doRebirth() {
-  const cost = rebirthCost();
-  if (state.coins < cost) {
-    pushToast('金币不足', '重生需要 ' + cost + ' 金币', 'warning');
-    Audio.play(180, 0.1, 'square', 0.02, 120); return;
-  }
-  state.coins -= cost;
-  const refund = Math.round(cost * 0.3);
-  state.coins += refund;        // [v1.7q] 重建基金：返还 30%（拿去马上买回关键卡）
-  rebirths++;
-  /* 局内升级全部重置到初始：火力等级/散射强化/炸弹数/伤害卡/僚机/磁铁。
-     [v1.7q] 护盾值**保留** —— 清空生存三件套（盾/血/输出）会让重生
-     在高波次变成"当场暴毙券"（用户反馈："重置以后到后面很难活下来"）。
-     道具栏与超载充能不清（收集物与技能，不是"升级"）。 */
-  player.power = 1; player.spread = 0; player.boomCount = 1;
-  dmgMul = 1; drones = []; magnet = 0;
-  state.maxHp = Math.round(MAX_HP_BASE * Math.pow(1.05, rebirths));
-  state.hp = state.maxHp;
-  player.inv = Math.max(player.inv, 1.5);
-  rebirthGrace = 15;           // [v1.7q] 重建期：15s 受伤减半，给白板重建留过渡窗口
-  /* [v1.7r] 重生弹幕：全屏清敌弹 + 冲击环开场 —— 高波次满屏弹幕时重生，
-     下一秒就是白板站在弹幕缝里，先给一块干净的开场地。
-     不带伤害：重生的定位是"战术换层"，不是免费的清屏炸弹。 */
-  ebullets.length = 0;
-  addShockwave(player.x, player.y, 'success', 20, 140);
-  explode(player.x, player.y, 'success', 16, 110);
-  pushToast('重生 ×' + rebirths, '升级重置 · 返 ' + refund + ' 金 · 重建期 15s', 'success');
-  Audio.play(520, 0.14, 'triangle', 0.04, 120, 'player');
-  resumeGame();
-}
-
-function dmgOf(v) { return v * dmgMul * atkUpgMul() * rebirthMul()
-  * (rebirthGrace > 0 ? 2 : 1); }   // 局内成长卡 × 局外成长树 × 重生乘区 × 重建期×2（[v1.7r]）
+/* 伤害结算唯一入口（[v1.8] 重生系统已整体移除，dmgOf 回到两个乘区）。
+   局内成长卡（无上限、价格递增）× 局外成长树。 */
+function dmgOf(v) { return v * dmgMul * atkUpgMul(); }
 
 /* ===== 好 / 坏状态 =====
    同时只保留一个（新的顶掉旧的），持续 12 秒。
@@ -4465,6 +4478,7 @@ const QUALITY_MODES = [
   { id: 3, name: '高',   val: 1 }
 ];
 let qualityMode = 0;
+const QUALITY_MODE_NAMES = QUALITY_MODES.map(m => m.name);
 function loadQualityMode() {
   const v = parseInt(localStorage.getItem(QUALITY_KEY) || '0', 10);
   qualityMode = (v >= 0 && v <= 3) ? v : 0;
@@ -4531,29 +4545,29 @@ const Audio = {
           if (!isNaN(v)) this.volume = Math.max(0, Math.min(1, v));
         }
       } catch (e) {}
+      /* [v1.9] 总线后挂 DynamicsCompressor：阈值 -18dB、2:1 压缩、
+         10ms attack、200ms release —— 爆炸瞬间不会穿帮，
+         不压时候仅是"接近直通"的轻处理。 */
+      this.comp = this.ctx.createDynamicsCompressor();
+      this.comp.threshold.value = -18; this.comp.knee.value = 12;
+      this.comp.ratio.value = 2; this.comp.attack.value = 0.01; this.comp.release.value = 0.2;
+      this.comp.connect(this.ctx.destination);
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = this.isMuted ? 0 : this.volume;
-      this.masterGain.connect(this.ctx.destination);
-      this.bgmGain = this.ctx.createGain(); this.bgmGain.gain.value = 0.22;
+      this.masterGain.connect(this.comp);
+      /* [v1.8] 全系统柔和化：所有增益下调，改掉刺耳的方波/锯齿波主导。
+         [v1.9] BGM 在音效里压太狠（0.12 几乎听不见），抬到 0.18——
+         低于改版前的 0.22，又回到了"能听出来是歌"的程度。 */
+      this.bgmGain = this.ctx.createGain(); this.bgmGain.gain.value = 0.18;
       this.bgmGain.connect(this.masterGain);
-      this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.5;
+      this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.35; // 0.5→0.35
       this.sfxGain.connect(this.masterGain);
-      /* ===== 双总线 =====
-         之前所有音效共用一条 sfxGain，所以"我开枪"和"敌人爆炸"是同一层声音，
-         混战时分不清哪个是自己造成的 —— 打击感的一半就没了。
-
-         现在分两条：
-           player 玩家总线：直达 sfxGain，清脆不闷
-           world  世界总线：经 lowpass（2600Hz）再进 sfxGain，刻意闷一点
-         这样玩家自己的枪声永远"在前"，世界的爆炸声"在后"。
-
-         注意：人耳比人眼快（音频 5ms 响应 vs 视觉 16ms 一帧），
-         所以听觉上的分层比视觉上的分层更容易被感知。 */
-      this.playerGain = this.ctx.createGain(); this.playerGain.gain.value = 0.9;
+      /* ===== 双总线（分层不变，但两个总线都压低了） ===== */
+      this.playerGain = this.ctx.createGain(); this.playerGain.gain.value = 0.7; // 0.9→0.7
       this.playerGain.connect(this.sfxGain);
-      this.worldGain = this.ctx.createGain(); this.worldGain.gain.value = 0.8;
+      this.worldGain = this.ctx.createGain(); this.worldGain.gain.value = 0.6;   // 0.8→0.6
       this.worldFilter = this.ctx.createBiquadFilter();
-      this.worldFilter.type = 'lowpass'; this.worldFilter.frequency.value = 2600;
+      this.worldFilter.type = 'lowpass'; this.worldFilter.frequency.value = 1800; // 2600→1800 更闷
       this.worldGain.connect(this.worldFilter); this.worldFilter.connect(this.sfxGain);
     } catch (e) {}
   },
@@ -4572,11 +4586,31 @@ const Audio = {
     try {
       const t = this.ctx.currentTime;
       const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-      o.type = type; o.frequency.setValueAtTime(freq, t);
+      /* [v1.9] 全面软化合集：
+         ① 方波/锯齿波落地成三角波，不再有奇次高频刺；
+         ② 三角波也过一道低通削到 900Hz，确保永远"软"
+            （哪怕音量调大也只是响，不会毛）；
+         ③ 起音统一 25ms、衰减 40ms 尾巴（原来的"爆"字完全退休）；
+         ④ 调用方敲定的音量再乘 0.72，保手感不破音。 */
+      let t2 = type, lp = 0;
+      if (type === 'square' || type === 'sawtooth') { t2 = 'triangle'; lp = type === 'sawtooth' ? 700 : 900; vol *= 0.72; }
+      else if (type === 'triangle') { lp = 900; vol *= 0.85; }
+      /* sine 不动，已经最软 */
+      o.type = t2;
+      o.frequency.setValueAtTime(freq, t);
       if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
-      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g); g.connect(bus === 'player' ? this.playerGain : this.worldGain);
-      o.start(t); o.stop(t + dur + 0.02);
+      if (lp) {
+        const f = this.ctx.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.7;
+        o.connect(f); f.connect(g);
+      } else {
+        o.connect(g);
+      }
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.025);  /* 25ms 起音 */
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.04);  /* 尾巴多给 40ms */
+      g.connect(bus === 'player' ? this.playerGain : this.worldGain);
+      o.start(t); o.stop(t + dur + 0.06);
     } catch (e) {}
   },
   playNoise(dur, vol = 0.05, bus = 'world') {
@@ -4589,8 +4623,11 @@ const Audio = {
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
       const src = this.ctx.createBufferSource(); src.buffer = buffer;
-      const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 800;
-      const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      /* [v1.9] 爆炸噪声削到 600Hz 闷响 + 20ms 软起，不再刺耳 */
+      const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 600;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol * 0.75, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.05);
       src.connect(filter); filter.connect(g);
       g.connect(bus === 'player' ? this.playerGain : this.worldGain); src.start(t);
     } catch (e) {}
@@ -4600,30 +4637,64 @@ const Audio = {
   startBGM() {
     if (!this.ctx || this.isBgmPlaying) return;
     this.isBgmPlaying = true;
-    const bpm = 130, stepDur = 60 / bpm / 2;
+    /* [v1.9] 太空沉浸环境音：去鼓点、去节拍器。
+       stepDur 0.9s × 8 步 = 7.2s 换一个和弦（Am-F-C-G）——
+       Drone 是常驻低鸣（换和弦时音高滑过去，不断音），
+       Pad 双层微失谐铺出厚垫，Lead 换成稀疏长尾"星铃"，
+       听起来是"漂在太空里"，不是"在打节拍"。 */
+    const stepDur = 0.9, STEP_PER_CHORD = 8;
     let step = 0;
     let nextTime = this.ctx.currentTime + 0.08;
-    const bassSeq = [55, 0, 55, 0, 65.4, 0, 55, 0, 49, 0, 49, 0, 58.3, 0, 55, 0];
-    const padSeq  = [220, 0, 0, 0, 261.6, 0, 0, 0, 196, 0, 0, 0, 233.1, 0, 0, 0];
-    const leadSeq = [440, 0, 523.3, 0, 659.3, 0, 523.3, 0, 392, 0, 440, 0, 523.3, 0, 392, 0];
+    let droneOsc = null, droneGain = null, droneFreq = 0;   // 常驻低鸣，跨步存活
+    const CHORDS = [
+      { root: 55.00, pad: [220.0, 261.6, 329.6], bells: [880.0, 1046.5, 1318.5, 1760.0] },   // Am
+      { root: 43.65, pad: [174.6, 220.0, 261.6], bells: [698.5, 880.0, 1046.5, 1396.9] },    // F
+      { root: 65.41, pad: [261.6, 329.6, 392.0], bells: [783.9, 1046.5, 1318.5, 1568.0] },   // C
+      { root: 49.00, pad: [196.0, 246.9, 293.7], bells: [587.3, 783.9, 1174.7, 1568.0] }     // G
+    ];
     const self = this;
     const scheduleStep = (s, t) => {
       const ac = self.ctx; if (!ac) return;
-      if (bassSeq[s]) {
-        const o = ac.createOscillator(); o.type = 'sawtooth'; o.frequency.value = bassSeq[s];
-        const g = ac.createGain(); g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.001, t + stepDur * 2);
-        const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 200;
-        o.connect(f); f.connect(g); g.connect(self.bgmGain); o.start(t); o.stop(t + stepDur * 2);
+      const bar = Math.floor(step / STEP_PER_CHORD) % CHORDS.length;
+      const ch = CHORDS[bar];
+      const inBar = step % STEP_PER_CHORD;
+
+      /* --- Drone：和弦根音的常驻低鸣。换和弦不重起音符，
+         而是频率滑过去 —— 像远处引擎的 continuous hum。 */
+      if (!droneOsc) {
+        droneOsc = ac.createOscillator(); droneOsc.type = 'sine'; droneOsc.frequency.value = ch.root;
+        droneGain = ac.createGain(); droneGain.gain.setValueAtTime(0, t);
+        droneGain.gain.linearRampToValueAtTime(0.045, t + 2.0);   // 2s 渐强入场
+        const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 110;
+        droneOsc.connect(f); f.connect(droneGain); droneGain.connect(self.bgmGain);
+        droneOsc.start(t); droneFreq = ch.root;
+        self._droneRef = { o: droneOsc, g: droneGain };   /* stopBGM 要靠它收尾 */
+      } else if (droneFreq !== ch.root) {
+        droneOsc.frequency.exponentialRampToValueAtTime(ch.root, t + stepDur * 2);
+        droneFreq = ch.root;
       }
-      if (padSeq[s]) {
-        const o = ac.createOscillator(); o.type = 'triangle'; o.frequency.value = padSeq[s];
-        const g = ac.createGain(); g.gain.setValueAtTime(0.03, t); g.gain.exponentialRampToValueAtTime(0.001, t + stepDur * 4);
-        o.connect(g); g.connect(self.bgmGain); o.start(t); o.stop(t + stepDur * 4);
+
+      /* --- Pad：每和弦头一步铺三音 × 双层微失谐，1.2s 软起、跨整个和弦长尾 --- */
+      if (inBar === 0) {
+        for (const nf of ch.pad) {
+          for (const det of [0.998, 1.002]) {           /* 双层微失谐：薄垫变厚垫，太空合唱感 */
+            const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = nf * det;
+            const g = ac.createGain(); g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.006, t + 1.2);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + stepDur * STEP_PER_CHORD + 1.5);
+            o.connect(g); g.connect(self.bgmGain); o.start(t); o.stop(t + stepDur * STEP_PER_CHORD + 1.6);
+          }
+        }
       }
-      if (leadSeq[s] && Math.random() < 0.7) {
-        const o = ac.createOscillator(); o.type = 'square'; o.frequency.value = leadSeq[s];
-        const g = ac.createGain(); g.gain.setValueAtTime(0.02, t); g.gain.exponentialRampToValueAtTime(0.001, t + stepDur * 1.5);
-        o.connect(g); g.connect(self.bgmGain); o.start(t); o.stop(t + stepDur * 1.5);
+
+      /* --- 星铃：稀疏、随机、3 秒长尾。太空感来自"偶尔有一颗星闪一下"。 --- */
+      if (Math.random() < 0.16) {
+        const bf = ch.bells[Math.floor(Math.random() * ch.bells.length)];
+        const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = bf;
+        const g = ac.createGain(); g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.020, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+        o.connect(g); g.connect(self.bgmGain); o.start(t); o.stop(t + 3.1);
       }
     };
     const feed = () => {
@@ -4636,7 +4707,16 @@ const Audio = {
     feed();
     this.bgmTimer = setInterval(feed, 40);
   },
-  stopBGM() { if (this.bgmTimer) { clearInterval(this.bgmTimer); this.bgmTimer = null; } this.isBgmPlaying = false; }
+  stopBGM() {
+    if (this.bgmTimer) { clearInterval(this.bgmTimer); this.bgmTimer = null; }
+    this.isBgmPlaying = false;
+    /* [v1.9] 常驻 drone 跨调度存活，停 BGM 必须把它也掐了，否则暂停后还在嗡。 */
+    if (this._droneRef) {
+      try { this._droneRef.g.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.25);
+            this._droneRef.o.stop(this.ctx.currentTime + 0.3); } catch (e) {}
+      this._droneRef = null;
+    }
+  }
 };
 
 /* ==================================================================
@@ -4733,11 +4813,12 @@ const UPGRADES = [
     core: () => 'x3', prio: () => (itemCounts[0] <= 3 ? 5 : 2) },
   /* ⚠️ cost 改成函数：随已购张数递增（见 dmgCardCost）。
      ⚠️ tip 与 desc 全部从常量派生，不再手写"2%"/"10%" ——
-     手写数字会随常量调整而失准（此前就出现了说明写 +10%、代码是 +20%）。 */
+     手写数字会随常量调整而失准（此前就出现了说明写 +10%、代码是 +20%）。
+     [v1.8] 无伤害上限：递增价格就是唯一的自我约束。 */
   { id:'dmg',        name:'伤害强化', desc:'伤害 +' + Math.round(DMG_STEP * 100) + '%', cost: dmgCardCost, color:'#ff9f43', icon:'power',
-    tip: '子弹伤害 +' + Math.round(DMG_STEP * 100) + '%（最多叠到 +' + Math.round((DMG_CAP - 1) * 100) + '%）',
+    tip: '子弹伤害 +' + Math.round(DMG_STEP * 100) + '%（可无限叠加）',
     core: () => '+' + Math.round((dmgMul - 1) * 100 + DMG_STEP * 100) + '%',
-    prio: () => (dmgMul < DMG_CAP ? 6 : 0) },
+    prio: () => 6 },
   { id:'ult_core',   name:'能量核心', desc:'超载立即就绪',    cost:30, color:'#7be9ff', icon:'ult',
     tip: '清空超载冷却，立刻可以再放',
     core: () => '就绪', prio: () => (ultCd > 3 ? 4 : 0) },
@@ -4829,6 +4910,19 @@ const TREE_UPGRADES = [
 const CRIT_DMG_MUL = 2.5;
 
 let progress = { chips: 0, upgrades: {} };
+/* [v1.8] 军备（独立页）：满级后的芯片出口——可重复购买，库存长期存档，
+   效果在下一局开局一并结账。不是成长树（那是"永久变强"），而是"氪金备好起跑线"。 */
+let armory = { coins: 0, shield: 0, power: 0, drone: 0, ult: 0 };
+const ARMORY_SLOTS = [
+  { id: 'coins',  name: '军需金援', desc: '下局金币 +100',      cost: 6,  icon: 'coin' },
+  { id: 'shield', name: '护盾预热', desc: '下局护盾 +50',       cost: 8,  icon: 'shield' },
+  { id: 'power',  name: '火力预热', desc: '下局火力 Lv+1',      cost: 10, icon: 'power' },
+  { id: 'drone',  name: '僚机伴飞', desc: '下局僚机 +1 架',     cost: 12, icon: 'drone' },
+  { id: 'ult',    name: '超载直达', desc: '下局超载立即就绪',   cost: 10, icon: 'ult' }
+];
+const UPD_DASH_32 = [3, 2];   // [v1.8] perf：精英虚线数组按帧复用
+/* 点击区由 menu 布局写回（芯片页五枚列表行）。 */
+const ARMORY_BTNS = ARMORY_SLOTS.map(() => ({ x: 0, y: 0, w: 0, h: 0 }));
 
 /* 第 level 级（0-based）的花费 */
 function upgCost(u, level) { return u.base + level * 2; }
@@ -4931,6 +5025,17 @@ function loadProgress() {
     if (!raw) return;
     const p = JSON.parse(raw);
     progress.chips = Math.max(0, parseInt(p.chips, 10) || 0);
+    /* [v1.8] 军备库存：只接受数字，脏数据归零。 */
+    try {
+      const ab = p.armory || {};
+      for (const s of ARMORY_SLOTS) {
+        /* 钳在 20：老存档里 coins/shield 存的是"数值总额"（如 100），直接读进来会爆表。 */
+        let v = Math.round(parseInt(ab[s.id], 10) || 0);
+        if (s.id === 'coins' && v % 100 === 0 && v > 0) v = Math.round(v / 100);
+        if (s.id === 'shield' && v % 50 === 0 && v > 0) v = Math.round(v / 50);
+        armory[s.id] = Math.max(0, Math.min(20, v));
+      }
+    } catch (e2) { for (const s of ARMORY_SLOTS) armory[s.id] = 0; }
     /* ⚠️ 旧存档迁移：'move'（移速）与 'bomb'（炸弹扩容）两项已被替换成
        'dodge'（闪避护盾）与 'mag'（弹匣扩容）。
        新树里没有这两个 id，遍历时读到的就是 undefined ——
@@ -4957,10 +5062,24 @@ function loadProgress() {
   } catch (e) {}
 }
 function saveProgress() {
+  const ab = {};
+  for (const s of ARMORY_SLOTS) ab[s.id] = armory[s.id];
+  progress.armory = ab;
   safeSet(PROGRESS_KEY, JSON.stringify(progress));
 }
 
 /* 购买一级。返回是否成功 —— UI 需要据此播放"成功弹跳"或"不足抖动"。 */
+/* [v1.8] 军备购买：芯片换"下局的起跑线"，库存长期存档。 */
+function buyArmory(id) {
+  const s = ARMORY_SLOTS.find(x => x.id === id);
+  if (!s || progress.chips < s.cost) return false;
+  progress.chips -= s.cost;
+  armory[s.id] = (armory[s.id] || 0) + 1;
+  saveProgress();
+  nodeFlashT['armory_' + id] = uiTime;
+  return true;
+}
+
 function buyTreeUpgrade(id) {
   const u = TREE_UPGRADES.find(x => x.id === id);
   if (!u) return false;
@@ -4995,8 +5114,7 @@ const CHIP_BOSS_DROP = 5;
 /* 伤害卡返芯片（修改清单第 30 条后半）。
    本局买了伤害卡 → 局末按张数返芯片（封顶 CHIP_REFUND_MAX），
    把"局内金币"与"局外成长"接上：否则局内买卡是一次性消耗，
-   买完就清零，投入感很弱 —— 尤其是伤害卡有 DMG_CAP 上限，
-   买到上限后再花金币就完全没有回报了。
+   买完就清零，投入感很弱。
 
    ⚠️ 封顶是必须的：伤害卡最多 5 张，不封顶等于每局白送 5 芯片，
    会让技能树（全套 330）在十几局内点满，长线成长失去重量。
@@ -5017,19 +5135,21 @@ function pushHistory(score, wave, kills) {
   add(stats.histKills, kills);
 }
 
-/* UI 音效：30ms 方波极短"滴"，用于所有界面切换与按钮反馈。
-   与游戏音效分开 —— 战斗音效已经在放，UI 音必须更短更轻才不会糊在一起。 */
+/* [v1.9] UI 音效再柔一档：正弦 + 木鱼式"叩"（起音 30ms 不衰减到峰值，
+   80ms 自然回落），且限幅到 0.02 —— 点哪里都不会有"敲塑料"的感觉。 */
 Audio.ui = function (freq) {
   if (!this.ctx || this.isMuted) return;
   try {
     const t = this.ctx.currentTime;
     const o = this.ctx.createOscillator(), g = this.ctx.createGain();
-    o.type = 'square';
+    o.type = 'sine';                       // 方波 → 正弦，去掉高频谐波
     o.frequency.setValueAtTime(freq || 900, t);
-    g.gain.setValueAtTime(0.05 * (this.volume === undefined ? 0.6 : this.volume), t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+    const v = 0.018 * (this.volume === undefined ? 0.6 : this.volume);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.03);            // 慢起
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);  // 缓落
     o.connect(g); g.connect(this.playerGain || this.sfxGain || this.masterGain);
-    o.start(t); o.stop(t + 0.035);
+    o.start(t); o.stop(t + 0.12);
   } catch (e) {}
 };
 
@@ -5135,6 +5255,24 @@ function closeNameInput() {
   setTimeout(() => { try { canvas.focus(); } catch (e) {} }, 10);
 }
 nameInput.addEventListener('blur', () => { if (nameInputOpen) closeNameInput(); });
+/* [v1.8] 背景图选择器：选定后读成 dataURL 存档并立即生效。 */
+try {
+  const bgInput = document.getElementById('bgInput');
+  if (bgInput) bgInput.addEventListener('change', () => {
+    const f = bgInput.files && bgInput.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        safeSet(BG_KEY, String(rd.result));
+        bgImg = new Image(); bgImg.onload = () => { bgReady = true; }; bgImg.src = String(rd.result);
+        bgInput.value = '';
+        try { pushToast('背景图已应用', '主菜单已更新', 'coin'); } catch (e) {}
+      } catch (e) {}
+    };
+    rd.readAsDataURL(f);
+  });
+} catch (e) {}
 nameInput.addEventListener('keydown', (e) => {
   e.stopPropagation();
   if (e.key === 'Enter') { e.preventDefault(); closeNameInput(); }
@@ -5244,6 +5382,7 @@ const TREND_METRICS = [
   { key: 'score', name: '得分/秒', color: '#ffd166' },
   { key: 'hp',    name: '生命',    color: '#ff4d6d' }
 ];
+const TREND_METRIC_LABELS = TREND_METRICS.map(m => m.name);
 function sampleTrend() {
   runTrend.push({ t: runTime, kills: runKills, score: state.score, hp: Math.max(0, state.hp) });
   if (runTrend.length > TREND_MAX) runTrend.shift();
@@ -5485,7 +5624,7 @@ const UI_MODALS = {
   settings: {
     animKey: 'settings',
     isOpen: () => settingsPageActive,
-    doOpen: () => { settingsPageActive = true; settingsClosing = false; resetConfirm = false; },
+    doOpen: () => { settingsPageActive = true; settingsClosing = false; resetConfirm = false; SET_SUB = null; },
     doClose: () => { animSet('settings', 0, T_PAGE); settingsClosing = true; }
   },
   ach: {
@@ -5493,6 +5632,20 @@ const UI_MODALS = {
     isOpen: () => achPageActive,
     doOpen: () => { achPageActive = true; achClosing = false; achFilter = 0; },
     doClose: () => { animSet('ach', 0, T_PAGE); achClosing = true; }
+  },
+  /* [v1.8] 版本更新独立页：自成弹窗，不再借图鉴页签。 */
+  update: {
+    animKey: 'update',
+    isOpen: () => updActive,
+    doOpen: () => { updActive = true; updClosing = false; },
+    doClose: () => { animSet('update', 0, T_PAGE); updClosing = true; }
+  },
+  /* [v1.8] 版本详情窗（更新页之上的第二层弹窗）。 */
+  verd: {
+    animKey: 'verd',
+    isOpen: () => updDetailActive,
+    doOpen: () => { updDetailActive = true; updDetailClosing = false; },
+    doClose: () => { animSet('verd', 0, T_PAGE); updDetailClosing = true; }
   },
   name: {
     animKey: null,            // DOM 输入框，无进出场动画
@@ -5540,10 +5693,12 @@ function uiCloseAll() {
       if (k === 'codex') codexPage.active = false;
       if (k === 'settings') { settingsPageActive = false; resetConfirm = false; }
       if (k === 'ach') achPageActive = false;
+      if (k === 'update') updActive = false;
+      if (k === 'verd') { updDetailActive = false; updDetail = null; }
     }
     if (m.animKey) animInstant(m.animKey);
   }
-  codexClosing = settingsClosing = achClosing = false;
+  codexClosing = settingsClosing = achClosing = updClosing = updDetailClosing = false;
 }
 
 /* 出场动画播完 → 真正 inactive。
@@ -5555,6 +5710,8 @@ function uiSyncClose() {
   if (codexClosing && animV('codex') <= 0) { codexClosing = false; codexPage.active = false; }
   if (settingsClosing && animV('settings') <= 0) { settingsClosing = false; settingsPageActive = false; resetConfirm = false; }
   if (achClosing && animV('ach') <= 0) { achClosing = false; achPageActive = false; }
+  if (updClosing && animV('update') <= 0) { updClosing = false; updActive = false; }
+  if (updDetailClosing && animV('verd') <= 0) { updDetailClosing = false; updDetailActive = false; updDetail = null; }
 }
 
 /* 默认色是"没有语义的一档"，旧值 #3ad1ff 是上一个主题的青（现在它是 primary 的登记色）。
@@ -5880,9 +6037,7 @@ const PAUSE_BUTTONS = {
      两个出口都一级后，确认弹窗失去存在意义（只剩重开会进退两难：无法取消），故移除。 */
   restart: { x: 22, y: 0, w: 0, h: 26 },
   home:    { x: 22, y: 0, w: 0, h: 26 },
-  /* [v1.7p] 重生入口：战略决策行（全宽，次要行与主按钮之间）——
-     与"快速回去"的节奏决策分层，值得独占一行。 */
-  rebirth:{ x: 22, y: 0, w: W - 44, h: 28 }
+  /* [v1.7p] 重生入口已随 [v1.8] 移除：重生系统整体下线（用户决定不再要这个功能）。 */
 };
 let achPageActive = false;   // 成就页是否打开
 /* 成就页页签：0=全部 1=已达成 2=未达成。11 条在 H=320 一屏装不下（H8 禁止静默丢行），
@@ -5899,6 +6054,7 @@ const ACH_TAB_BTN = [
 ];
 // 关闭中标记：出场动画播完才真正 inactive（否则看不到"让出位置"的那一段）
 let codexClosing = false, settingsClosing = false, achClosing = false;
+let updActive = false, updClosing = false;   // [v1.8] 版本更新页
 const MENU_VOL_CTRL = { x: 22, y: 0, w: W - 44, h: 22, dragging: false };
 
 const MENU_NAME_CARD = { x: 30, y: 0, w: W - 60, h: 40 };
@@ -5909,8 +6065,10 @@ const MENU_NAME_CARD = { x: 30, y: 0, w: W - 60, h: 40 };
    由补间驱动 —— 真实状态 menuPage 立刻切换，动画只管视觉。 */
 let menuPage = 0;
 const menuPageX = { v: 0 };
-const MENU_TABS = [{ name: '成 长' }, { name: '战 绩' }];
-let menuTabRect = [{ x: 0, y: 0, w: 0, h: 0 }, { x: 0, y: 0, w: 0, h: 0 }];
+const MENU_TABS = [{ name: '成 长' }, { name: '战 绩' }, { name: '芯 片' }];
+/* [v1.8] perf：标签数组按帧复用，别每帧 map 出一份。 */
+const MENU_TAB_LABELS = MENU_TABS.map(t => t.name);
+let menuTabRect = [{ x: 0, y: 0, w: 0, h: 0 }, { x: 0, y: 0, w: 0, h: 0 }, { x: 0, y: 0, w: 0, h: 0 }];
 /* 成长树节点矩形由 drawGrowthTree 写入、点击端读取。
    与画质分段按钮同一套做法：绘制和命中必须读同一份矩形，
    两边各算一遍（尤其列数会随矮屏切换）必然出现"点第二格选中第三格"。 */
@@ -6003,8 +6161,14 @@ const PAGE_TAB_Y = 52;    // 子页统一页签带 y（页签高 24 由各页自
 /* [v1.7] 标题区收敛成 48px 紧凑 app bar：品牌字在左、两枚图标按钮在右。
    图鉴/设置都是低频入口，从动作行升进顶栏 —— 动作行让给全宽的开始游戏。 */
 const MENU_BAR_H = 48;
+/* [v1.8] 品牌彩蛋的点击状态：2 秒内 5 连点换主题。 */
+let brandTaps = 0, brandTapT = 0;
 const MENU_SETTINGS_BTN = { x: 0, y: 0, w: 30, h: 30 };   // 顶栏右1：设置（tune 图标）
-const MENU_CODEX_BTN = { x: 0, y: 0, w: 30, h: 30 };       // 顶栏右2：图鉴（book 图标）
+const MENU_CODEX_BTN = { x: 0, y: 0, w: 30, h: 30 };      // 顶栏右2：图鉴（book 图标）
+const MENU_INFO_BTN = { x: 0, y: 0, w: 30, h: 30 };       // 顶栏右3：版本更新（info 图标）
+/* [v1.8] 次要入口行：主按钮下方一枚每日挑战 + 空格。
+   每日挑战 = 按日期确定的同一武器 + 双倍芯片掉落，今天大家玩的是同一盘棋。 */
+const MENU_DAILY_BTN = { x: 0, y: 0, w: 0, h: 26 };
 // 打字机状态：记录当前文案与开始时间。文案不变时不重置进度
 const menuType = { tag: '', t0: 0 };
 
@@ -6176,6 +6340,34 @@ function drawFps() {
 }
 function toggleFps() { showFps = !showFps; Audio.ui(showFps ? 760 : 520); }
 
+
+/* ===== [v1.8] 主菜单自定义背景图 =====
+   图片以 dataURL 存 localStorage；画布上按透明度 + ctx.filter 毛玻璃模糊绘制。
+   localStorage 5MB 上限是硬约束，读档失败由 safeSet 静默吐一次 toast。 */
+const BG_KEY = 'pixelraider_bg';
+let bgImg = null, bgReady = false;
+let bgSet = { alpha: 0.4, blur: 4 };
+const BG_CFG_KEY = 'pixelraider_bg_cfg';
+function loadBgCfg() {
+  try {
+    const s = JSON.parse(localStorage.getItem(BG_CFG_KEY) || '{}');
+    bgSet.alpha = mdClamp(parseFloat(s.alpha), 0, 1);  if (!isFinite(bgSet.alpha)) bgSet.alpha = 0.4;
+    bgSet.blur = mdClamp(parseFloat(s.blur), 0, 12);   if (!isFinite(bgSet.blur)) bgSet.blur = 4;
+  } catch (e) {}
+  try {
+    const d = localStorage.getItem(BG_KEY);
+    if (d) { bgImg = new Image(); bgImg.onload = () => { bgReady = true; }; bgImg.src = d; }
+  } catch (e) {}
+}
+function saveBgCfg() { safeSet(BG_CFG_KEY, JSON.stringify(bgSet)); }
+function setBgAlpha(v) { bgSet.alpha = mdClamp(v, 0, 1); saveBgCfg(); }
+function setBgBlur(v) { bgSet.blur = mdClamp(v, 0, 12); saveBgCfg(); }
+function clearBg() { bgImg = null; bgReady = false; try { localStorage.removeItem(BG_KEY); } catch (e) {} }
+function pickBg() {
+  try { const el = document.getElementById('bgInput'); if (el) el.click(); } catch (e) {}
+}
+
+
 /* 主菜单功能分区：一个「图鉴 / 说明」按钮 + 右上角齿轮（设置）。
    操作说明和武器图鉴原本是两个并列按钮，占两格且视觉上黏在一起；
    现在合并成一个入口，进页后用顶部两个 tab 切换 —— 入口更少，内容不丢。 */
@@ -6190,6 +6382,8 @@ const CODEX_TABS = [
   { text: '操作说明' },
   { text: '武器图鉴' }
 ];
+const CODEX_TAB_LABELS = CODEX_TABS.map(t => t.text);
+/* [v1.8] 版本日志拆为独立页（原第三页签），见 UI_MODALS.update。 */
 const CODEX_TAB_BTN = [
   { x: 0, y: 0, w: 0, h: 24 },
   { x: 0, y: 0, w: 0, h: 24 }
@@ -6202,6 +6396,10 @@ const SET_BTN = {
   vol:   { x: 22, y: 0, w: W - 44, h: 24 },   // 音量行（可拖动，命中区由布局同步）
   fps:   { x: 22, y: 0, w: W - 44, h: 24 },   // FPS 显示开关（画面区）
   qseg: [],                                    // 画质分段按钮（自动/低/中/高）
+  bgpick: { x: 0, y: 0, w: 0, h: 0 },          // [v1.8] 背景图：选择
+  bgclear: { x: 0, y: 0, w: 0, h: 0 },         // [v1.8] 背景图：清除
+  bgalpha: { track: null },                    // [v1.8] 背景透明度滑块轨道
+  bgblur: { track: null },                     // [v1.8] 背景模糊度滑块轨道
   theme: [],                                   // 主题色块（6 个，两行三列）
   reset: { x: 22, y: 0, w: W - 44, h: 26 },
   back:  { x: 0, y: 0, w: 110, h: 26 }
@@ -6258,16 +6456,13 @@ function layoutButtons() {
     const halfW = (PW - gp) / 2;
     const exitY = H - botPad - eh;
     const minorY = exitY - gp - mh;
-    const rebirthY = minorY - gp - mh;             // [v1.7p] 重生行（全宽）
-    const resumeY = rebirthY - gp - MH;
+    const resumeY = minorY - gp - MH;              // [v1.8] 重生行已移除
 
     PAUSE_BUTTONS.restart.x = PX;                   PAUSE_BUTTONS.restart.y = exitY;
     PAUSE_BUTTONS.restart.w = halfW;                PAUSE_BUTTONS.restart.h = eh;
     PAUSE_BUTTONS.home.x = PX + halfW + gp;         PAUSE_BUTTONS.home.y = exitY;
     PAUSE_BUTTONS.home.w = halfW;                   PAUSE_BUTTONS.home.h = eh;
 
-    PAUSE_BUTTONS.rebirth.x = PX;                  PAUSE_BUTTONS.rebirth.y = rebirthY;
-    PAUSE_BUTTONS.rebirth.w = PW;                  PAUSE_BUTTONS.rebirth.h = mh;
     PAUSE_BUTTONS.ach.x = PX;                       PAUSE_BUTTONS.ach.y = minorY;
     PAUSE_BUTTONS.ach.w = halfW;                    PAUSE_BUTTONS.ach.h = mh;
     PAUSE_BUTTONS.settings.x = PX + halfW + gp;     PAUSE_BUTTONS.settings.y = minorY;
@@ -6349,7 +6544,12 @@ function layoutButtons() {
   /* [v1.7] 动作行单按钮化：开始游戏全宽独占（图鉴已升入顶栏图标位）。
      MENU_FUNC_BTN[0]（图鉴）随之退役，点击端读 MENU_CODEX_BTN。 */
   MENU_START_BTN.x = 22;                      MENU_START_BTN.y = y;
-  MENU_START_BTN.w = W - 44;                  MENU_START_BTN.h = aH;
+  /* [v1.8] 动作行 开始游戏（约 6 成宽）+ 每日挑战（辅）：主菜单不再只有一件事，
+     但主按钮仍占绝对主导宽度。 */
+  const sbW = Math.round((W - 44 - 8) * 0.60);
+  MENU_START_BTN.w = sbW;                     MENU_START_BTN.h = aH;
+  MENU_DAILY_BTN.x = 22 + sbW + 8;            MENU_DAILY_BTN.y = y;
+  MENU_DAILY_BTN.w = W - 44 - sbW - 8;        MENU_DAILY_BTN.h = aH;
   MENU_FUNC_BTN[0].w = 0; MENU_FUNC_BTN[0].h = 0;   // 退役，防误命中
   y += aH + gapUse;
 
@@ -6361,7 +6561,9 @@ function layoutButtons() {
      独立控件用的；顶栏两颗紧挨着品牌字与屏幕边缘，扩命中会把点图鉴变成点空白。 */
   MENU_SETTINGS_BTN.x = W - 22 - 30; MENU_SETTINGS_BTN.y = 9;
   MENU_SETTINGS_BTN.w = 30; MENU_SETTINGS_BTN.h = 30;
-  MENU_CODEX_BTN.x = W - 22 - 30 - 4 - 30; MENU_CODEX_BTN.y = 9;
+  MENU_INFO_BTN.x = W - 22 - 30 - 4 - 30; MENU_INFO_BTN.y = 9;
+  MENU_INFO_BTN.w = 30; MENU_INFO_BTN.h = 30;
+  MENU_CODEX_BTN.x = W - 22 - 30 - 4 - 30 - 4 - 30; MENU_CODEX_BTN.y = 9;
   MENU_CODEX_BTN.w = 30; MENU_CODEX_BTN.h = 30;
 
   MENU_FUNC_BTN[1].w = 0; MENU_FUNC_BTN[1].h = 0;    // 废弃，防误命中
@@ -6377,10 +6579,7 @@ function layoutButtons() {
   // 图鉴页两个 tab（横排，位于统一页签带 PAGE_TAB_Y 上）
   const tw = (W - 44 - 8) / 2;
   for (let i = 0; i < 2; i++) {
-    CODEX_TAB_BTN[i].x = 22 + i * (tw + 8);
-    CODEX_TAB_BTN[i].y = PAGE_TAB_Y;
-    CODEX_TAB_BTN[i].w = tw;
-    CODEX_TAB_BTN[i].h = 24;
+    CODEX_TAB_BTN[i] = { x: 22 + i * (tw + 8), y: PAGE_TAB_Y, w: tw, h: 24 };
   }
 
   /* 成就页页签带：与图鉴页签同一条 PAGE_TAB_Y —— [v1.7] 起两屏页签恒在同一水平线。
@@ -6412,6 +6611,75 @@ let SET_ZONES = [];
    挂在 z 上的自定义字段会被这一层映射丢掉，绘制只能退回兜底值 ——
    兜底一旦生效，布局就算白算了。独立对象才能原样传到绘制端。 */
 let SET_RIGHT = { rows: [], rowH: 0 };
+/* [v1.8] 设置主页 = 四枚分区按钮，点开各进独立子页（不再一锅挤）。
+   SET_SUB: null=主页，否则 'pers'/'snd'/'disp'/'stat'。 */
+let SET_SUB = null;
+const SET_SUBS = [
+  { key: 'pers', name: '个性化', desc: '用户名 · 背景图 · 主题色', icon: 'person' },
+  { key: 'snd',  name: '音效',   desc: '静音 · 音量',            icon: 'sound' },
+  { key: 'disp', name: '画面',   desc: 'FPS · 画质',  icon: 'image' },
+  { key: 'stat', name: '本机数据', desc: '历史累计统计',           icon: 'sort' }
+];
+const SET_HUB_BTNS = SET_SUBS.map(() => ({ x: 0, y: 0, w: 0, h: 0 }));
+/* 子页模式：把对应 zone 独占到整页（不再与别的分区抢行高）。 */
+function layoutSettingsSub(key) {
+  const C = SET_CTRL, rowH = C.ROW_H, gap = 5;
+  const top = PAGE_TOP_H + 6, bot = H - 40;
+  SET_RIGHT.rowH = rowH;
+  const L = { rowH: rowH, swH: 24, rowInGap: 4, swGap: 4, footY: H - 12 };
+  /* [v1.8] 子页控件 y 必须同步写回 SET_BTN.mute/vol/fps/name ——
+     此前子页画在新的 y 上、命中区还停在主页布局，于是"点的不是画的"。 */
+  /* [v1.8] 子页控件 y 回写 SET_BTN，且无关行全部置 -999——
+     不然残留的主页/别的子页行矩形会继续吃触控（实测：音效子页点上方永远先触发改名）。 */
+  const syncRowBtns = () => {
+    for (const b of [SET_BTN.name, SET_BTN.mute, SET_BTN.vol, SET_BTN.fps]) { b.h = rowH; b.y = -999; }
+    if (key === 'pers') SET_BTN.name.y = SET_RIGHT.rows[0];
+    if (key === 'snd') { SET_BTN.mute.y = SET_RIGHT.rows[1]; SET_BTN.vol.y = SET_RIGHT.rows[2]; }
+    if (key === 'disp') SET_BTN.fps.y = SET_RIGHT.rows[3];
+  };
+  if (key === 'pers') {
+    let y = top;
+    const ys = [0, 6, 7, 8];
+    for (const idx of ys) { SET_RIGHT.rows[idx] = y; y += rowH + gap; }
+    SET_RIGHT.themeLblY = y;
+    const swTop = y + mdType('label') + 4;
+    const rows2 = 2, swH = Math.min(26, (bot - swTop - 4) / rows2);
+    const sw = Math.round(((W - 44) - 2 * 6) / 3);
+    for (let i = 0; i < 6; i++) {
+      const col = i % 3, row = (i / 3) | 0;
+      SET_BTN.theme[i].x = 22 + col * (sw + 6);
+      SET_BTN.theme[i].y = swTop + row * (swH + 4);
+      SET_BTN.theme[i].w = sw; SET_BTN.theme[i].h = swH;
+    }
+    /* 卡高按内容收尾，不让下面拉成一面空墙。 */
+    const persH = (swTop - top) + rows2 * (swH + 6) + 8;
+    SET_ZONES = [{ key: 'pers', y: top, h: persH }];
+    syncRowBtns();
+  } else if (key === 'snd') {
+    let y = top;
+    SET_RIGHT.rows[1] = y; y += rowH + gap;
+    SET_RIGHT.rows[2] = y;
+    SET_ZONES = [{ key: 'snd', y: top, h: rowH * 2 + gap }];
+    syncRowBtns();
+  } else if (key === 'disp') {
+    let y = top;
+    SET_RIGHT.rows[3] = y; y += rowH + gap;
+    SET_RIGHT.rows[4] = y; y += rowH + gap;
+    /* 画质分段在 SET_BTN.qseg 上重排（同 setLayoutSettings 的几何）。 */
+    const segH = Math.max(12, Math.min(18, rowH - 4));
+    const qleft = 22 + C.LABEL.pad + 30, segW = (22 + (W - 44) - 8 - qleft) / 4;
+    const segY = SET_RIGHT.rows[4] + (rowH - segH) / 2;
+    for (let i = 0; i < 4; i++) {
+      SET_BTN.qseg[i].x = qleft + i * segW; SET_BTN.qseg[i].y = segY; SET_BTN.qseg[i].w = segW; SET_BTN.qseg[i].h = segH;
+    }
+    SET_ZONES = [{ key: 'disp', y: top, h: rowH * 2 + gap }];
+    syncRowBtns();
+  } else {
+    const cell = Math.min(30, (bot - top) / 2 - 6);
+    SET_RIGHT.statCell = cell;
+    SET_ZONES = [{ key: 'stat', y: top, h: cell * 2 + 10 }];
+  }
+}
 function setLayoutSettings() {
   /* [v1.7] 设置页改为四分区纵向流：个性化（用户名+主题色）/ 音效 / 画面 / 本机数据，
      每区 = mdSection 标题 + 一张卡。旧版是"上栏统计卡 + 下栏控件行"两段式：
@@ -6445,14 +6713,19 @@ function setLayoutSettings() {
     let y = top;
     const head = showHeads ? SEC_HEAD : 0;
     y += head;                                          // 「个性化」
+    /* [v1.8] 个性化区扩到 4 行控件：用户名 / 背景图（选或清）/ 透明度 / 模糊度 + 主题色块。
+       DENSE 横屏空间账单装不下这 3 行 → 只留「背景图」一行（选择/清除），
+       两个滑块退到不画不点（竖屏完整可用）。 */
+    const bgRows = dense ? 1 : 3;
     z.pers = { key: 'pers', y: y,
-      h: CARD_PAD + rowH + rowInGap + SEC_LBL + swH * themeRows + swGap * (themeRows - 1) + CARD_PAD };
+      h: CARD_PAD + rowH * (1 + bgRows) + rowInGap * bgRows + SEC_LBL + swH * themeRows + swGap * (themeRows - 1) + CARD_PAD };
     y += z.pers.h + secGap;
     y += head;                                          // 「音效」
     z.snd = { key: 'snd', y: y, h: CARD_PAD * 2 + rowH * 2 + rowInGap };
     y += z.snd.h + secGap;
     y += head;                                          // 「画面」
-    z.disp = { key: 'disp', y: y, h: CARD_PAD * 2 + rowH * 2 + rowInGap };
+    /* [v1.8] 画面区改三行：FPS 开关 / 画质 / 帧率上限。 */
+    z.disp = { key: 'disp', y: y, h: CARD_PAD * 2 + rowH * 3 + rowInGap * 2 };
     y += z.disp.h + secGap;
     if (showStat) {
       y += head;                                       // 「本机数据」
@@ -6469,7 +6742,11 @@ function setLayoutSettings() {
   };
 
   let s = 1, L = lay(1, 0);
-  while (L.total > bot - top && s > 0.6) { s -= 0.05; L = lay(s, 0); }
+  /* [v1.8] 压缩下限 0.6 → 0.45：个性化区多了三行（背景图），
+     触底还要再让，否则危险区被推进「返回」身上（实测 1080×2340 撞上，误点清了存档）。 */
+  while (L.total > bot - top && s > 0.45) { s -= 0.05; L = lay(s, 0); }
+  /* 兜底：压到 0.45 还超就硬挪——危险行贴着返回按钮上沿排，绝不重叠。 */
+  if (L.z.data.y + RESET_H > bot - 2) L.z.data.y = bot - RESET_H;
   /* 余量撑缝不撑块：四个分区间隙均摊，每条最多 +10 —— 超过就是断裂不是节奏。 */
   const slack = (bot - top) - L.total;
   if (slack > 2) L = lay(s, Math.min(10, Math.floor(slack / 4)));
@@ -6479,13 +6756,18 @@ function setLayoutSettings() {
     L.z.snd.y + CARD_PAD,                                   // 1 静音（音效卡内）
     L.z.snd.y + CARD_PAD + L.rowH + L.rowInGap,             // 2 音量
     L.z.disp.y + CARD_PAD,                                  // 3 FPS（画面卡内）
-    L.z.disp.y + CARD_PAD + L.rowH + L.rowInGap             // 4 画质
+    L.z.disp.y + CARD_PAD + L.rowH + L.rowInGap,            // 4 画质
+    L.z.disp.y + CARD_PAD + (L.rowH + L.rowInGap) * 2,      // 5 帧率上限
+    L.z.pers.y + CARD_PAD + L.rowH + L.rowInGap,            // 6 背景图（选/清）
+    /* DENSE 下两条滑块行不布局（y=-999 永不命中，绘制端同判据隐藏） */
+    dense ? -999 : L.z.pers.y + CARD_PAD + (L.rowH + L.rowInGap) * 2,    // 7 背景透明度
+    dense ? -999 : L.z.pers.y + CARD_PAD + (L.rowH + L.rowInGap) * 3     // 8 背景模糊度
   ];
   SET_RIGHT.rowH = L.rowH;
   SET_RIGHT.footY = L.footY;
   SET_RIGHT.statCell = L.statCell;                          // 统计格高（绘制端 2×2 用）
   /* 卡内「主题色」小标签带：色块区起点由它给出。 */
-  SET_RIGHT.themeLblY = SET_RIGHT.rows[0] + L.rowH + L.rowInGap;
+  SET_RIGHT.themeLblY = SET_RIGHT.rows[0] + (L.rowH + L.rowInGap) * (dense ? 2 : 4);
 
   /* 主题色块：个性化卡内、用户名行之下。位置由布局写回 SET_BTN.theme，
      绘制端与命中端读同一份（画质分段/图鉴页签都踩过"两份真相"的坑）。 */
@@ -6501,23 +6783,6 @@ function setLayoutSettings() {
     }
   }
 
-  /* 画质分段按钮（几何口径同旧版：标签之后起排、右端对齐、段间无缝）。 */
-  {
-    const qy = SET_RIGHT.rows[4];
-    const n = QUALITY_MODES.length;
-    const segH = Math.max(12, Math.min(18, L.rowH - 4));
-    const right = 22 + (W - 44) - 8;
-    const left = 22 + C.LABEL.pad + 30;
-    const totalW = right - left;
-    const segW = Math.max(18, totalW / n);
-    const segY = qy + (L.rowH - segH) / 2;
-    for (let i = 0; i < n; i++) {
-      SET_BTN.qseg[i].x = left + i * segW;
-      SET_BTN.qseg[i].y = segY;
-      SET_BTN.qseg[i].w = segW;
-      SET_BTN.qseg[i].h = segH;
-    }
-  }
 
   /* 五个控件行的命中矩形：画在哪，就点哪。 */
   SET_BTN.name.y = SET_RIGHT.rows[0]; SET_BTN.name.h = L.rowH;
@@ -6548,6 +6813,28 @@ function setLayoutSettings() {
      true   → 命中了某个控件，本次点击已消费
      false  → 未命中任何控件（视为点空白，由调用方决定是否关闭页面） */
 function handleSettingsTap(x, y, fromPause) {
+  /* [v1.8] 子页优先：顶栏 back 回设置主页。 */
+  if (SET_SUB && hitTest({ x: 0, y: 0, w: 56, h: PAGE_TOP_H }, x, y)) { SET_SUB = null; Audio.ui(620); return true; }
+  /* 主页：四枚分区卡 + 清除存档 + 返回。 */
+  if (!SET_SUB) {
+    for (let i = 0; i < SET_SUBS.length; i++) {
+      if (hitTest(SET_HUB_BTNS[i], x, y)) {
+        SET_SUB = SET_SUBS[i].key;
+        layoutSettingsSub(SET_SUB);
+        Audio.ui(860 + i * 60);
+        return true;
+      }
+    }
+    if (hitTest(SET_BTN.reset, x, y)) {
+      if (resetConfirm) { clearAllData(); resetConfirm = false; Audio.ui(300); }
+      else { resetConfirm = true; Audio.ui(500); }
+      return true;
+    }
+    if (hitTest(SET_BTN.back, x, y)) { uiCloseTop(); Audio.ui(600); return true; }
+    uiCloseTop();
+    if (fromPause) Audio.play(600, 0.07, 'square', 0.03, 900); else Audio.ui(600);
+    return true;
+  }
   if (hitSetVolumeArea(x, y)) { setVolDragging = true; setVolumeFromPointer(x); return 'drag'; }
   if (hitTest(SET_BTN.name, x, y)) { Audio.ui(900); uiOpen('name'); return true; }
   if (hitTest(SET_BTN.mute, x, y)) { Audio.toggleMute(); Audio.ui(700); return true; }
@@ -6559,6 +6846,20 @@ function handleSettingsTap(x, y, fromPause) {
     }
     return true;   // 命中行但没命中分段：消费掉，别穿透关页面
   }
+  /* [v1.8] 背景图行：左半选图、右半清除；透明度/模糊度行走拖动滑块。 */
+  if (hitTest({ x: 22, y: SET_RIGHT.rows[6], w: W - 44, h: SET_RIGHT.rowH }, x, y)) {
+    if (hitTest(SET_BTN.bgpick, x, y)) { pickBg(); Audio.ui(900); return true; }
+    if (hitTest(SET_BTN.bgclear, x, y)) { clearBg(); Audio.ui(500); return true; }
+    return true;
+  }
+  if (hitTest({ x: 22, y: SET_RIGHT.rows[7], w: W - 44, h: SET_RIGHT.rowH }, x, y)) {
+    const t = SET_BTN.bgalpha.track; if (t) { bgDrag = 'alpha'; setBgAlpha(mdClamp((x - t.x) / t.w, 0, 1)); Audio.ui(700); return 'drag'; }
+    return true;
+  }
+  if (hitTest({ x: 22, y: SET_RIGHT.rows[8], w: W - 44, h: SET_RIGHT.rowH }, x, y)) {
+    const t = SET_BTN.bgblur.track; if (t) { bgDrag = 'blur'; setBgBlur(mdClamp((x - t.x) / t.w, 0, 1) * 12); Audio.ui(700); return 'drag'; }
+    return true;
+  }
   // 主题色块：即时生效，不用确认按钮。色块自身就是预览
   for (let i = 0; i < SET_BTN.theme.length; i++) {
     if (hitTest(SET_BTN.theme[i], x, y)) { if (setTheme(i)) Audio.ui(900 + i * 90); return true; }
@@ -6569,7 +6870,9 @@ function handleSettingsTap(x, y, fromPause) {
     else { resetConfirm = true; Audio.ui(500); }
     return true;
   }
-  // 点空白：只关设置页，绝不穿透到下层（暂停态下尤其危险 —— 不能顺手把游戏继续了）
+  /* [v1.8] 子页底部「返回」仍可一击回主菜单（保留旧体验），back 箭头才回主页。 */
+  if (hitTest(SET_BTN.back, x, y)) { uiCloseTop(); Audio.ui(600); return true; }
+  // 点空白：只关设置页（子页也一样），绝不穿透到下层
   uiCloseTop();
   if (fromPause) Audio.play(600, 0.07, 'square', 0.03, 900);
   else Audio.ui(600);
@@ -6589,14 +6892,44 @@ function handleMenuTap(x, y) {
       }
     }
   }
-    if (hitTest(CODEX_TAB_BTN[0], x, y)) { codexPage.tab = 0; Audio.ui(800); return true; }
-    if (hitTest(CODEX_TAB_BTN[1], x, y)) { codexPage.tab = 1; Audio.ui(800); return true; }
+    for (let i = 0; i < CODEX_TAB_BTN.length; i++) {
+      if (hitTest(CODEX_TAB_BTN[i], x, y)) { codexPage.tab = i; Audio.ui(800); return true; }
+    }
     // 点空白关闭：交给栈顶处理（栈决定关谁，不用在这里写死）
     uiCloseTop(); Audio.ui(600); return true;
   }
   if (settingsPageActive) return handleSettingsTap(x, y, false);
+  /* [v1.8] 更新页：详情窗打开时详情窗优先——点卡外区或「关闭」都会先关它。
+     列表页本体：点卡片=弹出详情（轻点）；拖动=滚动（移动超过 6px 不算点）。 */
+  if (updActive) {
+    if (updDetailActive) {
+      if (hitTest(UPD_DETAIL_BTN,x, y) || !hitTest(UPD_DETAIL_RECT, x, y)) {
+        uiCloseTop(); Audio.ui(600);
+      }
+      return true;
+    }
+    if (hitTest(SET_BTN.back, x, y)) { uiCloseTop(); Audio.ui(600); return true; }
+    if (hitTest({ x: 22, y: PAGE_TOP_H + 10, w: W - 44, h: Math.max(48, (SET_BTN.back.y - 12) - (PAGE_TOP_H + 10)) }, x, y)) {
+      updDragging = true; updMoved = false; updStartY = y; updLastY = y;
+      updPressV = null;
+      for (const r of UPD_RECTS) {
+        if (hitTest(r, x, y)) { updPressV = r.v; break; }
+      }
+      return 'drag';
+    }
+    return true;
+  }
   if (hitTest(MENU_SETTINGS_BTN, x, y)) { uiOpen('settings'); Audio.ui(1000); return true; }
-  if (hitTest(MENU_CODEX_BTN, x, y)) { uiOpen('codex'); Audio.ui(1000); return true; }
+  if (hitTest(MENU_CODEX_BTN, x, y)) { codexPage.tab = 0; uiOpen('codex'); Audio.ui(1000); return true; }
+  if (hitTest(MENU_INFO_BTN, x, y)) { uiOpen('update'); Audio.ui(1000); return true; }
+  /* [v1.8] 彩蛋：2 秒内连点品牌字 5 次 → 换一套主题。
+     命中区只盖品牌带（顶栏左半），不与页签区/内容区抢。 */
+  if (hitTest({ x: 0, y: 0, w: 140, h: MENU_BAR_H }, x, y)) {
+    if (uiTime - brandTapT > 1.5) brandTaps = 0;
+    brandTapT = uiTime; brandTaps++;
+    if (brandTaps >= 5) { brandTaps = 0; setTheme((themeIdx + 1) % THEMES.length); Audio.ui(1200); }
+    return true;
+  }
 
   /* 标签切换：真实状态 menuPage 立刻变，视觉偏移交给补间。
      不等动画播完再切 —— 那样连点会丢输入，且状态与显示脱节。 */
@@ -6641,7 +6974,19 @@ function handleMenuTap(x, y) {
      但当时真正的元凶是"点任意空白都能开局"（已单独修复）。
      现在它是明确的按钮，与图鉴同类，没必要在战绩页隐藏：
      隐藏会让左半格空着（布局虽不跳动但看着像缺块），且切换页时按钮凭空消失很突兀。 */
+  /* [v1.8] 芯片页点击区：每个军备行就是一颗购买钮。 */
+  if (menuPage === 2) {
+    for (let i = 0; i < ARMORY_SLOTS.length; i++) {
+      if (ARMORY_BTNS[i].w > 0 && hitTest(ARMORY_BTNS[i], x, y)) {
+        const s = ARMORY_SLOTS[i];
+        if (buyArmory(s.id)) { Audio.ui(940); pushToast(s.name, '已存 1 份（下局结账）', 'coin'); }
+        else Audio.ui(300);
+        return true;
+      }
+    }
+  }
   if (hitTest(MENU_START_BTN, x, y)) { startGame(); return true; }
+  if (hitTest(MENU_DAILY_BTN, x, y)) { startDailyGame(); return true; }
   return true;
 }
 
@@ -6663,6 +7008,7 @@ function hitSetVolumeArea(x, y) {
 }
 let setVolRowY = 0;
 let setVolDragging = false;
+let bgDrag = null;   // [v1.8] 'alpha'/'blur'：背景图两条滑块的拖动状态
 function setVolumeFromPointer(px) {
   /* 值映射用绘制端写回的轨道矩形（SET_BTN.vol.track），极端情况（页面刚打开、
      一帧都还没画）退回同一个函数 setVolTrack() 现算 —— 退回的是同一份公式，
@@ -6687,6 +7033,12 @@ function updateVolumeFromX(x) {
 let weaponGlow = 0;   // 武器切换流光计时
 function selectWeapon(i) {
   if (i < 0 || i >= WEAPON_COUNT) return;
+  /* [v1.8] 每日挑战锁定当日武器：其他武器不可切换（点选给低音拒绝）。 */
+  if (dailyMode && i !== player.weapon) {
+    Audio.play(180, 0.08, 'square', 0.02, 120);
+    pushToast('每日挑战', '仅限今日武器 · ' + WEAPONS[dailySpec().weapon].name, 'warning');
+    return;
+  }
   // 放在越界检查之后：无效索引不该计入战况统计
   if (i !== player.weapon) { runSwitches++; weaponGlow = 0.5; Audio.ui(1050); }
   player.weapon = i;
@@ -6748,7 +7100,6 @@ function handleButtonPress(x, y) {
     /* 出口一级化：重开 / 返回主菜单都在面板上直接生效，不再走二次确认弹窗。
        返回主菜单原先藏在「结束本局 ›」文字链 → 弹窗的二级路径里，
        玩家在暂停面板上根本看不到入口 —— 这才是"返回缺失"的真正原因。 */
-    if (hitTest(PAUSE_BUTTONS.rebirth, x, y)) { doRebirth(); return true; }   // [v1.7p]
     if (hitTest(PAUSE_BUTTONS.restart, x, y)) {
       Audio.play(500, 0.1, 'square', 0.03, 400);
       paused = false; startGame();
@@ -7259,14 +7610,21 @@ function spawnPlanet(wave) {
   };
 }
 
+/* [v1.9] 天空渐变按 zone 缓存：原来每帧重建一遍 createLinearGradient（GC 压力），
+   只有换星区才重建。缓存与 STAR_ZONES 的 key 走同一个函数，不会错配。 */
+let _bgGrad = null, _bgGradZone = -1;
 function drawBackground() {
-  const zone = STAR_ZONES[zoneIndexForWave(state.wave)];
+  const zIdx = zoneIndexForWave(state.wave);
+  const zone = STAR_ZONES[zIdx];
 
   // --- 第 1 层：深空气辉（替换纯黑底，色相随星区漂移）---
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, zone.top);
-  grad.addColorStop(1, zone.bot);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  if (_bgGradZone !== zIdx || !_bgGrad) {
+    _bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+    _bgGrad.addColorStop(0, zone.top);
+    _bgGrad.addColorStop(1, zone.bot);
+    _bgGradZone = zIdx;
+  }
+  ctx.fillStyle = _bgGrad; ctx.fillRect(0, 0, W, H);
   if (auraSprite) {
     const as = W * 1.6;
     const ox = -(bgT * 3) % as, oy = -(bgT * 2) % as;
@@ -7277,7 +7635,7 @@ function drawBackground() {
   }
 
   // --- 第 2 层：星云（lighter 叠加，双图不同速横向滚动）---
-  const neb = NEBULA_CACHE[zoneIndexForWave(state.wave)];
+  const neb = NEBULA_CACHE[zIdx];
   if (neb) {
     const nw = W * 1.4;
     ctx.save();
@@ -7733,17 +8091,35 @@ function addBlast(x, y, color, level) {
       life: 0.09, max: 0.09, alpha: 0.9 });
   }
   if (level >= 2) {
-    // 外扩环：慢而大，定义爆炸的"范围"
-    blasts.push({ type: 'ring', x, y, color, r: 2, r0: 2, r1: level >= 3 ? 46 : 24,
-      life: 0.34, max: 0.34, alpha: 0.55, lw: 2 });
+    /* [v1.9] 碎片改"贴身尖刺"：原来飞 50px+ 满屏飘长方形太乱，
+       现在低速度、短命、长度随寿命收窄 —— 是"炸开的刺"不是"乱飞的块"。 */
+    const shN = level >= 3 ? 5 : 3;
+    for (let i = 0; i < shN; i++) {
+      const ang = (Math.PI * 2 / shN) * i + Math.random() * 0.5;   /* 大致均分方向，不散乱 */
+      const spd = level >= 3 ? 60 + Math.random() * 30 : 45 + Math.random() * 20;
+      blasts.push({
+        type: 'shard', x, y, color: i % 3 === 0 ? MD3.matHot : color,
+        a: ang, spd, len: (level >= 3 ? 12 : 9) + Math.random() * 4,
+        life: 0.22, max: 0.22, alpha: 0.9
+      });
+    }
+    // 外扩环：保留但压低透明度（不再充当主视觉）
+    blasts.push({ type: 'ring', x, y, color, r: 2, r0: 2, r1: level >= 3 ? 42 : 22,
+      life: 0.32, max: 0.32, alpha: 0.38, lw: 2 });
     // 中心光晕收缩：与外扩环反向运动，形成"炸开又收回"的层次
     blasts.push({ type: 'glow', x, y, color, r: level >= 3 ? 22 : 12, r0: level >= 3 ? 22 : 12,
       r1: 1, life: 0.22, max: 0.22, alpha: 0.5, shrink: true });
   }
   if (level >= 3) {
     // 三层环：最外层慢、最内层快 —— 三层速度不同才像"冲击波"而不是三个同心圆
-    blasts.push({ type: 'ring', x, y, color: MD3.matHot, r: 4, r0: 4, r1: 62, life: 0.5, max: 0.5, alpha: 0.4, lw: 1.5 });
-    blasts.push({ type: 'ring', x, y, color, r: 2, r0: 2, r1: 34, life: 0.28, max: 0.28, alpha: 0.6, lw: 2.5 });
+    blasts.push({ type: 'ring', x, y, color: MD3.matHot, r: 4, r0: 4, r1: 58, life: 0.48, max: 0.48, alpha: 0.32, lw: 1.5 });
+    blasts.push({ type: 'ring', x, y, color, r: 2, r0: 2, r1: 32, life: 0.26, max: 0.26, alpha: 0.5, lw: 2 });
+    // 外圈补一圈稍长刺（速度仍压住，不再满屏飞）
+    for (let i = 0; i < 4; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      blasts.push({ type: 'shard', x, y, color: MD3.matHot, a: ang, spd: 85 + Math.random() * 40,
+        len: 16 + Math.random() * 6, life: 0.20, max: 0.20, alpha: 0.8 });
+    }
     // 地面残留光：爆炸后原地留几团慢慢上浮的余烬，给"这里刚炸过"的记忆
     for (let i = 0; i < 4; i++) {
       blasts.push({ type: 'ground', x: x + (Math.random() - 0.5) * 22, y: y + (Math.random() - 0.5) * 14,
@@ -7760,7 +8136,13 @@ function updateBlasts(dt) {
     if (b.life <= 0) { blasts.splice(i, 1); continue; }
     const k = 1 - b.life / b.max;
     // 环/光晕：半径插值（shrink 的反向）
-    b.r = b.r0 + (b.r1 - b.r0) * k;
+    if (b.r0 !== undefined) b.r = b.r0 + (b.r1 - b.r0) * k;
+    // 碎片矩形：沿放射方向飞行，且长度随寿命收窄成"刺"
+    if (b.type === 'shard') {
+      b.x += Math.cos(b.a) * b.spd * dt; b.y += Math.sin(b.a) * b.spd * dt;
+      b.spd *= 0.92;                       // 衰减：扎出去就慢下来，不飘
+      b.len *= 0.965;                      // 收窄：越到后期越短
+    }
     if (b.type === 'ground' && b.vy) b.y += b.vy * dt;
   }
 }
@@ -7792,6 +8174,19 @@ function drawBlasts() {
       ctx.globalAlpha = a * 0.8;
       ctx.fillStyle = b.color;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    } else if (b.type === 'shard') {
+      /* 矩形碎片：沿放射方向的"长条飞片"，转动 90° 的长方形
+         —— 取代纯同心圆的单调感，碎片再多也能看懂"往外炸"。 */
+      const len = b.len, th = Math.max(1.5, b.len * 0.28);
+      ctx.globalAlpha = a * k;          // 消失阶段透明度衰减
+      ctx.fillStyle = b.color;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.a);
+      ctx.fillRect(-len * 0.5, -th * 0.5, len, th);
+      /* 主碎片旁配一小块暗部，做出"碎"的层次 */
+      ctx.globalAlpha = a * k * 0.5;
+      ctx.fillStyle = MD3.matHot;
+      ctx.fillRect(-len * 0.25, -1, len * 0.35, 2);
+      ctx.restore();
     }
     ctx.restore();
   }
@@ -7984,12 +8379,15 @@ function updateHitRings(dt) {
   }
 }
 function drawHitRings() {
+  /* [v1.9] 命中环退役 → 方形收紧框：原来"一圈扩出去"跟爆炸环同型，
+     命中读起来像小爆。改成 45° 角方框从外向内收（打中 = 咬住目标），
+     配中心白点，形制与爆炸彻底错开。 */
   for (const h of hitRings) {
     const k = h.life / h.max;                        // 1 → 0
-    const r = 2 + (h.r1 - 2) * (1 - k);
+    const r = 2 + (h.r1 - 2) * k;                    // 方形从外圈收到贴点（反向插值）
     ctx.globalAlpha = k * 0.9;
     ctx.strokeStyle = h.color; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(h.x, h.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeRect(Math.round(h.x - r), Math.round(h.y - r), Math.round(r * 2), Math.round(r * 2));
     ctx.globalAlpha = k;
     ctx.fillStyle = MD3.matHot;
     ctx.fillRect(Math.round(h.x) - 1, Math.round(h.y) - 1, 2, 2);
@@ -8018,10 +8416,8 @@ function drawSparks() {
       ctx.lineTo(s.x + ca * l, s.y + sa * l);
     }
     ctx.stroke();
-    const rr = L * (1 - a) * 0.9 + 1;
-    ctx.globalAlpha = a * 0.6;
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(s.x, s.y, rr, 0, Math.PI * 2); ctx.stroke();
+    /* [v1.9] 收尾小环退役：命中反馈里的环形全部和爆炸环同型，"打 ≠ 炸"靠
+       形制区分才有意义 —— 火花只留线芒，不再混一个环。 */
   }
   ctx.restore();
 }
@@ -8364,8 +8760,7 @@ function hurtPlayer(dmg) {
      在伤害进入护盾/血量结算前统一乘：
      环境层（过热 +35%、虚空 +25%）也在此生效，与拾取层相乘。 */
   dmg = dmg * takenMul();
-  /* [v1.7q] 重建期：受伤减半 —— 升级清空后的白板期不该被高波次当场打死。 */
-  if (rebirthGrace > 0) dmg = Math.max(1, Math.ceil(dmg / 2));
+  /* [v1.8] 重生重建期减伤已随重生系统移除。 */
   /* 闪避护盾：概率完全免疫这一次伤害。
      放在 takenMul 之后、护盾结算之前 ——
      放在护盾之后就变成"护盾先被扣、再判免伤"，玩家会觉得盾白掉了。
@@ -9233,7 +9628,7 @@ function showUpgradePanel() {
     if (u.id === 'spread' && player.spread > 6) return false;
     if (u.id === 'magnet' && magnet > 6) return false;
     if (u.id === 'ult_core' && ultCd <= 0) return false;                 // 冷却已好则不出现
-    if (u.id === 'dmg' && dmgMul >= DMG_CAP - 1e-9) return false;        // 已到上限（DMG_CAP，+20%）
+    /* [v1.8] 伤害卡无上限：dmg 不再按 DMG_CAP 滤出卡池，能买到钱的尽头。 */
     return true;
   });
   if (pool.length === 0) { startWave(state.wave + 1); return; }
@@ -9273,7 +9668,7 @@ function buyUpgrade(index) {
       for (let i = 0; i < 3; i++) addItem('bomb');
       break;
     case 'ult_core': ultCd = 0; break;
-    case 'dmg': dmgMul = Math.min(DMG_CAP, dmgMul + DMG_STEP); break;
+    case 'dmg': dmgMul += DMG_STEP; break;      // [v1.8] 无上限，价格递增是唯一的约束
   }
   Audio.play(600, 0.1, 'square', 0.03, 1100); explode(W / 2, H / 2, opt.color, 14, 90);
   upgradePanel.options.splice(index, 1); if (upgradePanel.options.length === 0) closeUpgradePanel();
@@ -9373,7 +9768,6 @@ function update(dt) {
   if (state.hpFlash > 0) state.hpFlash = Math.max(0, state.hpFlash - dt);
   if (boss && boss.phaseFlash > 0) boss.phaseFlash = Math.max(0, boss.phaseFlash - dt);
   if (weaponGlow > 0) weaponGlow = Math.max(0, weaponGlow - dt);
-  if (rebirthGrace > 0) rebirthGrace = Math.max(0, rebirthGrace - dt);   // [v1.7q]
   if (player.shieldPulse > 0) player.shieldPulse = Math.max(0, player.shieldPulse - dt);
   if (player.shieldBreak > 0) player.shieldBreak = Math.max(0, player.shieldBreak - dt);
   if (deathT > 0) deathT = Math.max(0, deathT - dt);
@@ -9527,7 +9921,7 @@ function drawEnemies() {
       ctx.drawImage(g, x + e.w / 2 - gw / 2, y + e.h / 2 - gh / 2, gw, gh);
       ctx.globalAlpha = 0.75;
       ctx.strokeStyle = ec; ctx.lineWidth = 1.5;
-      ctx.setLineDash([3, 2]);
+      ctx.setLineDash(UPD_DASH_32);
       ctx.beginPath();
       ctx.arc(e.x, e.y, Math.max(e.w, e.h) / 2 + 3, e.t * 0.8, e.t * 0.8 + Math.PI * 2);
       ctx.stroke();
@@ -9741,11 +10135,8 @@ function drawBullets() {
          拖尾要给足长度才对得上"穿透高伤"的定位。 */
       const col = crit ? MD3.matHot : mdSeed(b.wc);
       if (useTrail) drawTrail(x, y, b.vx, b.vy, 26, crit ? 3.4 : 2.6, col);
-      if (useGlow) {
-        ctx.save();
-        ctx.drawImage(getGlowSprite(col, 'spark'), x - 7, y - 8, 14, 16);
-        ctx.restore();
-      }
+      /* [v1.9] save/restore 删：这层不改 ctx 状态，每次包一层是固定开销 */
+      if (useGlow) ctx.drawImage(getGlowSprite(col, 'spark'), x - 7, y - 8, 14, 16);
       /* ⚠️ 刃身长度必须读 LASER_HALF，不能写死 8/17：
          写过 HEAD 那次"命中区写死、绘制算出来"导致全屏点不动的教训 ——
          判定与绘制各写一份数字，改一处漏一处就会出现
@@ -9756,11 +10147,7 @@ function drawBullets() {
     } else if (b.drone) {
       // 僚机弹：小菱形，不给拖尾（数量多，且是副火力不该抢视线）
       const col = mdSeed(b.wc);
-      if (useGlow) {
-        ctx.save();
-        ctx.drawImage(getGlowSprite(col, 'spark'), x - 3, y - 3, 6, 6);
-        ctx.restore();
-      }
+      if (useGlow) ctx.drawImage(getGlowSprite(col, 'spark'), x - 3, y - 3, 6, 6);
       ctx.fillStyle = col;
       ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x + 2, y); ctx.lineTo(x, y + 3); ctx.lineTo(x - 2, y);
       ctx.closePath(); ctx.fill();
@@ -9770,11 +10157,7 @@ function drawBullets() {
          翼（左右两个小三角）是它与其他弹最容易区分的特征。 */
       const bc = mdSeed(b.wc), col = crit ? MD3.matHot : bc;
       if (useTrail) drawTrail(x, y, b.vx, b.vy, 16, 2.6, bc);
-      if (useGlow) {
-        ctx.save();
-        ctx.drawImage(getGlowSprite(bc, 'spark'), x - 5, y - 5, 10, 10);
-        ctx.restore();
-      }
+      if (useGlow) ctx.drawImage(getGlowSprite(bc, 'spark'), x - 5, y - 5, 10, 10);
       // 翼：与速度垂直方向张开
       const sp = Math.hypot(b.vx, b.vy) || 1;
       const px = -b.vy / sp, py = b.vx / sp;
@@ -10062,47 +10445,43 @@ function drawFloatTexts() {
    · 受伤时整环闪红 —— 危险反馈落在玩家身上而不是 HUD 上，比让 HUD 自己闪更直觉
    · 环外小三角指示移动方向，玩家立刻知道"我在往哪走"
 
-   半径 16 是与玩家名字协商的结果：名字块底必须落在环顶之上 2px，
-   否则环会压到飞船上方（玩家名标签已从局内移除，该处不再有内容）。 */
+   为什么不是环：玩家周的圆环和爆炸环/命中环同型，三个圈在屏上分不清。
+   [v1.9] 整个改"机腹充能条 + 四角电池指示"——飞船本身就是锚点，
+   状态贴在机体上读得比外圈更快。*/
 function drawPlayerAura() {
   if (state.mode !== MODE_PLAY || !player.alive || upgradePanel.active || paused) return;
-  const R = 16;
   const cx = Math.round(player.x) + 0.5, cy = Math.round(player.y) + 0.5;
   const ratio = ultCd > 0 ? 1 - ultCd / ULT_CD : 1;   // 冷却中弧长递增，冷却好则满环
   const ready = ratio >= 1;
   const hurt = state.hpFlash > 0;
-  // 满能量时环整体呼吸外扩，提示"可以释放超载了"
-  const rr = R * (ready ? 1 + Math.sin(state.time * 6) * 0.10 : 1);
 
-  /* 超载环三档（审计 L1565）：受击=hpLow，就绪=coin，充能=ult。
-     就绪用 coin 而不是 ult 是 HUD 那条冷却条已经在用的语言（drawHUD 的
-     ultReady ? 'coin' : 'ult'）—— 环和条必须同一个意思同一个色，
-     否则"能放大了"这件事在两处显示成两种颜色。
-     轨道与描边是透明档，走 hexA(令牌, a)，不再是手抄 rgba。 */
+  /* [v1.9] 三档语义不变（受击=hpLow / 就绪=coin / 充能=ult），只换形制：
+     圆环全退 → 机腹下方一根 20px 充能条 + 机头朝向三角。 */
   const auraCol = hurt ? MD3.hpLow : (ready ? MD3.coin : mdRole('ult'));
-  ctx.strokeStyle = hexA(MD3.surface, 0.75); ctx.lineWidth = 2.4;
-  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = hurt ? MD3.hpLow : hexA(MD3.outline, 0.35); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
 
+  /* 1. 机腹充能条：底槽 + 能量填充 + 就绪呼吸 */
+  const bw = 20, bh = 2;
+  const bx = cx - bw / 2, by = cy + 9;
+  ctx.globalAlpha = 0.5; ctx.fillStyle = hexA(MD3.surface, 0.8);
+  ctx.fillRect(bx - 1, by - 0.5, bw + 2, bh + 1);
+  ctx.fillStyle = hexA(MD3.outline, 0.3);
+  ctx.fillRect(bx, by, bw, bh);
   if (ratio > 0.01) {
-    const col = auraCol;
-    const a0 = -Math.PI / 2, a1 = a0 + Math.PI * 2 * ratio;
-    ctx.save();                                  // 发光内芯：叠加一层更宽的弧
-    ctx.strokeStyle = col; ctx.lineWidth = 2.8; ctx.globalAlpha = 0.45;
-    ctx.beginPath(); ctx.arc(cx, cy, rr, a0, a1); ctx.stroke();
-    ctx.restore();
-    ctx.strokeStyle = col; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(cx, cy, rr, a0, a1); ctx.stroke();
+    /* 就绪时呼吸闪，提示可以释放超载；受击时用红色直显。 */
+    const pulse = ready ? 0.6 + Math.sin(state.time * 8) * 0.3 : 1;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = auraCol;
+    ctx.fillRect(bx + 1, by + 0.5, Math.max(1, (bw - 2) * ratio), bh - 1);
   }
+  ctx.globalAlpha = 1;
 
-  // 机头朝向三角：贴在环外侧，随移动方向偏转
+  /* 2. 机头朝向三角：贴在机头正前方，随移动方向偏转 */
   const fa = playerFace;
   ctx.save();
-  ctx.translate(cx + Math.cos(fa) * (rr + 4), cy + Math.sin(fa) * (rr + 4));
-  ctx.rotate(fa + Math.PI / 2);                  // 三角默认尖端朝上（0,-1）
+  ctx.translate(cx + Math.cos(fa) * 10, cy + Math.sin(fa) * 10);
+  ctx.rotate(fa + Math.PI / 2);
   ctx.fillStyle = auraCol;
-  ctx.beginPath(); ctx.moveTo(0, -3.5); ctx.lineTo(2.4, 2); ctx.lineTo(-2.4, 2); ctx.closePath();
+  ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(3, 2.5); ctx.lineTo(-3, 2.5); ctx.closePath();
   ctx.fill();
   ctx.restore();
 }
@@ -10466,7 +10845,6 @@ function drawStatusChips() {
   if (player.spread > 0) chips.push({ t: '散射', role: 'tertiary', ratio: player.spread / 10 });
   if (magnet > 0)      chips.push({ t: '磁力', role: 'tertiary', ratio: magnet / 10 });
   if (drones.length)   chips.push({ t: '僚机', role: 'tertiary' });
-  if (rebirthGrace > 0) chips.push({ t: '重建', role: 'success', ratio: rebirthGrace / 15 });   // [v1.7q]
 
   /* ===== 几何（Z4 行，HUD 右半空档 x 120~215）=====
      [v1.7 排版 2.0] minX 90 → 120：左半从"四行状态条"换成 2×2 资源格（到 x112），
@@ -10522,8 +10900,9 @@ function getHudStatic() {
   const c = cv.getContext('2d');
   if (!c) return null;                       // 极端环境拿不到 context：退回每帧直画（同一份角色）
   c.scale(dpr, dpr);                         // 内部按逻辑坐标画，输出按 dpr 放大 → 不模糊
-  /* 常驻面 = 一层 tonal + 一条 1px hairline：没有渐变，也没有会发光的接缝。 */
-  c.fillStyle = plate.bg; c.fillRect(0, 0, W, HUD_H);
+  /* 常驻面 = 一层 tonal + 一条 1px hairline：没有渐变，也没有会发光的接缝。
+     [v1.8] 毛玻璃：顶栏微透（0.85），星野能浅浅透上来。 */
+  c.fillStyle = hexA(plate.bg, 0.85); c.fillRect(0, 0, W, HUD_H);
   c.fillStyle = plate.line; c.fillRect(0, HUD_H - 1, W, 1);
   HUD_STATIC = { key: key, cv: cv };
   return cv;
@@ -11558,7 +11937,7 @@ function drawMenuTabs(x, y, w, tabH) {
   const h = tabH || MENU_TAB_H;
   const n = MENU_TABS.length;
   const hitTop = Math.max(0, y - 8);
-  const rects = mdTabs(x, y, w, h, MENU_TABS.map(function (tt) { return tt.name; }), menuPage);
+  const rects = mdTabs(x, y, w, h, MENU_TAB_LABELS, menuPage);
   for (let i = 0; i < n && i < rects.length; i++) {
     menuTabRect[i].x = rects[i].x; menuTabRect[i].y = hitTop;
     menuTabRect[i].w = rects[i].w; menuTabRect[i].h = (y + h) - hitTop;
@@ -11569,6 +11948,11 @@ function drawMenuTabs(x, y, w, tabH) {
 
 /* 成长树节点：网格里的一格，也就是"一个可买的升级"。
    两行：名称+等级 / 说明+价格；格高不够就只剩第一行。 */
+/* [v1.8] 成长树节点专用图标表：一格只要一眼认得出，名称/价格才有位置读。 */
+const TREE_ICON = {
+  atk: 'power', rate: 'gauge', shield: 'shield', dodge: 'slow',
+  crit: 'boom', mag: 'spread', pierce: 'laser', ult: 'ult'
+};
 function drawUpgradeNode(x, y, w, h, u) {
   const lv = upgLevel(u.id);
   const maxed = lv >= u.max;
@@ -11593,7 +11977,10 @@ function drawUpgradeNode(x, y, w, h, u) {
   if (pressA > 0) mdStateLayer(x, y, w, h, rr, pressA, afford ? 'primary' : 'onSurface');
 
   const padX = LAYOUT.padSm();
-  const availW = Math.max(8, w - padX * 2);
+  /* [v1.8] 前导图标：12px 立在第一行，名称与说明整体右移腾出它。 */
+  const icS = Math.min(12, h - 8);
+  const iconW = icS > 0 ? icS + 4 : 0;
+  const availW = Math.max(8, w - padX * 2 - iconW);
   /* 禁用态只给"买不起"：满级是**完成**（次要文字 + check），不是不可用，
      一起压到 disabledFg 会让玩家以为这格坏了。 */
   const disA = (maxed || afford) ? 1 : STATE.disabledFg;
@@ -11625,7 +12012,12 @@ function drawUpgradeNode(x, y, w, h, u) {
   /* 同行两组信息之间的固定间距：预算与判据必须用同一个数，
      否则"判据认为放得下、截断又按更宽的间距留位"，差 1px 也会挤出省略号。 */
   const colGap = 3;
-  mdText(mdEllipsis(u.name, Math.max(10, availW - trailW - colGap), nameRole, 500), x + padX,
+  /* [v1.8] 图标用身份色（成长树颜色早就是数据），afford 才上色，买不起整格退灰。 */
+  if (iconW > 0) {
+    mdIcon(TREE_ICON[u.id] || 'power', x + padX + icS / 2, y + row1H / 2, icS,
+      maxed ? 'success' : (afford ? u.color : 'onSurfaceVariant'), { alpha: disA });
+  }
+  mdText(mdEllipsis(u.name, Math.max(10, availW - trailW - colGap), nameRole, 500), x + padX + iconW,
     mdTextY(y, row1H, nameRole), nameRole,
     afford ? 'onSurface' : 'onSurfaceVariant', { weight: 500, alpha: disA });
   if (maxed) {
@@ -11649,7 +12041,7 @@ function drawUpgradeNode(x, y, w, h, u) {
     let priceText = maxed ? '' : cost + ' 芯片';
     if (priceText && descW + colGap + mdTextWidth(priceText, 'label', 600) > availW) priceText = String(cost);
     const priceW = priceText ? Math.max(10, mdTextWidth(priceText, 'label', 600)) : 0;
-    mdText(mdEllipsis(u.desc, Math.max(10, availW - priceW - colGap), 'label', 500), x + padX,
+    mdText(mdEllipsis(u.desc, Math.max(10, availW - priceW - colGap), 'label', 500), x + padX + iconW,
       mdTextY(y + row1H, row2H, 'label'), 'label', 'onSurfaceVariant', { weight: 500, alpha: disA });
     /* 价格是芯片（coin 固定色，不随主题 —— 玩家对资源的识别不该被换肤动摇） */
     if (priceText) {
@@ -11681,6 +12073,14 @@ function drawGrowthTree(x, y, w, h) {
   /* tint:false：mdCard 默认按 elevation 叠一层主色，八格"买不起"的容器会跟着变亮，
      于是"能不能买"这个状态被一层与状态无关的着色污染。浮起只交给投影。 */
   mdCard(x, y, w, h, { role: 'surfaceContainerLow', radius: SHAPE.lg, elev: 1, tint: false });
+  /* [v1.8] 卡片头一行 = 芯片余额。军备随「芯片」独立页迁走（drawChipPage 全权持有）。 */
+  const headH = mdType('label') + 4;
+  if (h - headH - padY * 2 >= needRows) {
+    mdIcon('chip', x + padX + 6, y + headH / 2, 11, 'chip');
+    mdText('芯片 ' + progress.chips, x + padX + 14, mdTextY(y, headH, 'label'), 'label', 'chip', { weight: 600 });
+    mdText('点节点升级', x + w - padX, mdTextY(y, headH, 'label'), 'label', 'onSurfaceVariant', { align: 'right', weight: 500 });
+    y += headH; h -= headH;
+  }
   x += padX; y += padY; w -= padX * 2; h -= padY * 2;
   const cw = (w - gap * (cols - 1)) / cols;
   const ch = (h - gap * (rows - 1)) / rows;
@@ -11690,6 +12090,51 @@ function drawGrowthTree(x, y, w, h) {
     const r = menuNodeRect[i];
     r.x = cx; r.y = cy; r.w = cw; r.h = ch;
     drawUpgradeNode(cx, cy, cw, ch, TREE_UPGRADES[i]);
+  }
+}
+
+/* ===== [v1.8] 芯片页：军备五项 + 余额 + 说明 =====
+   每个军备一行：icon + 名称/说明 + 价格/库存。库存随存档长久在，下一局开局结账。 */
+function drawChipPage(x, y, w, h) {
+  mdCard(x, y, w, h, { role: 'surfaceContainerLow', radius: SHAPE.lg, elev: 1, tint: false });
+  const pad = LAYOUT.padSm();
+  /* 头部 = 芯片余额 + 结账提示。 */
+  const headH = mdType('label') + 4;
+  mdIcon('chip', x + pad + 6, y + headH / 2, 11, 'chip');
+  mdText('芯片 ' + progress.chips, x + pad + 14, mdTextY(y, headH, 'label'), 'label', 'chip', { weight: 600 });
+  mdText('下局开局一并结账', x + w - pad, mdTextY(y, headH, 'label'), 'label', 'onSurfaceVariant', { align: 'right', weight: 500 });
+  let yy = y + headH + 2;
+  const listH = h - headH - 2 - pad;
+  const n = ARMORY_SLOTS.length;
+  const gap = 4;
+  const rowH = mdClamp((listH - gap * (n - 1)) / n, 22, 34);
+  for (let i = 0; i < n; i++) {
+    const s = ARMORY_SLOTS[i], stock = armory[s.id] || 0;
+    const afford = progress.chips >= s.cost;
+    const by = yy + i * (rowH + gap);
+    ARMORY_BTNS[i].x = x + pad; ARMORY_BTNS[i].y = by; ARMORY_BTNS[i].w = w - pad * 2; ARMORY_BTNS[i].h = rowH;
+    mdSurface(x + pad, by, w - pad * 2, rowH, { role: afford ? 'surfaceContainerHigh' : 'surfaceContainer', radius: SHAPE.sm, elev: afford ? 1 : 0 });
+    const pa = mdPressA(x + pad, by, w - pad * 2, rowH);
+    if (pa > 0) mdStateLayer(x + pad, by, w - pad * 2, rowH, SHAPE.sm, pa, 'onSurface');
+    const ft = nodeFlashT['armory_' + s.id];
+    if (ft !== undefined && (uiTime - ft) / NODE_FLASH < 1) {
+      const k = (uiTime - ft) / NODE_FLASH;
+      mdStateLayer(x + pad, by, w - pad * 2, rowH, SHAPE.sm, (1 - k) * STATE.selected, 'primary');
+    }
+    const disA = afford ? 1 : STATE.disabledFg;
+    const icS = Math.min(14, rowH - 10);
+    mdIcon(s.icon, x + pad + 4 + icS / 2, by + rowH / 2, icS, afford ? 'coin' : 'onSurfaceVariant', { alpha: disA });
+    const stockTxt = stock > 0 ? ' ×' + stock : '';
+    mdText(mdEllipsis(s.name + stockTxt, Math.max(20, w * 0.30), 'body', 600),
+      x + pad + 4 + icS + 5, mdTextY(by, rowH, 'body'), 'body',
+      afford ? 'onSurface' : 'onSurfaceVariant', { weight: 600, alpha: disA });
+    /* 中部 = 说明；行尾 = 价格（含库存角标后字数可能长，量宽优先）。 */
+    const costTxt = s.cost + ' 芯';
+    const costW = mdTextWidth(costTxt, 'label', 600);
+    mdText(costTxt, x + w - pad - 4, mdTextY(by, rowH, 'label'), 'label', 'coin', { align: 'right', weight: 600, alpha: disA });
+    mdText(mdEllipsis(s.desc, Math.max(10, w - pad * 2 - 4 - icS - 5 - w * 0.30 - costW - 6), 'label', 500),
+      x + w - pad - 4 - costW - 6 - Math.min(w * 0.34, mdTextWidth(s.desc, 'label', 500)),
+      mdTextY(by, rowH, 'label'), 'label', 'onSurfaceVariant', { alpha: disA });
   }
 }
 
@@ -11712,31 +12157,43 @@ function drawMenu() {
   // 子页面打开时整页让出，避免两层信息叠在一起
   if (codexPage.active) { drawCodexPage(); return; }
   if (settingsPageActive) { drawSettingsPage(); return; }
+  if (updActive) { drawUpdatePage(); return; }
 
-  /* 页面先铺一层自己的 surface：原来标题和卡片直接浮在星场上，星云一亮就把文字压没
-     —— M3 的 tonal 层级必须从"有一块面"开始。
-     为什么去掉 alpha: 0.82：mdSurface 函数头自己写着"层级靠色阶，不靠透明度透背景"；
-     82% 的面等于把世界层永久留在 UI 底下 —— MODE_MENU 里 update() 照样每帧推进星点
-     （s.y += s.v * dt）与星云横滚，静止帧之间有差，正是本轮 §3 的判据要杀的东西。
-     要保留太空感的正解是在 SCRIM 旁边加一档具名令牌（令牌层，已报主线），不是抄一个 0.82。 */
+  /* 页面先铺一层自己的 surface（毛玻璃微透，星空能透上来），再在上面叠自定义背景图：
+     顺序必须是"面先图后" —— 图是先画还是后画决定它是否被面压住。 */
   mdSurface(0, 0, W, H, { role: 'surface', radius: 0 });
+  if (bgReady && bgImg) {
+    ctx.save();
+    try {
+      ctx.globalAlpha = bgSet.alpha;
+      if (bgSet.blur > 0.5) ctx.filter = 'blur(' + bgSet.blur + 'px)';
+      const iw = bgImg.width || 1, ih = bgImg.height || 1;
+      const sc = Math.max(W / iw, H / ih), dw = iw * sc, dh = ih * sc;
+      ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    } finally { ctx.restore(); }
+  }
 
-  /* [v1.7c] 入场第 0 档：顶栏（品牌字 + 图标入口） */
+  /* [v1.8 主菜单重排] 入场第 0 档：顶栏（品牌字 + 图标入口）
+     去掉整面灰条：品牌字与图标直接浮在页面 surface 上，顶部不再是一堵"墙"，
+     空间感立刻轻了；分界线从整页通栏 hairline 收成品牌字下方的短主色段。 */
   menuGrp(0, () => {
-    // ===== ① [v1.7] 标题区 = 48px 紧凑 app bar（MENU_BAR_H）：品牌字一行 + 两枚图标按钮 =====
-    mdSurface(0, 0, W, BAR_H, { role: 'surfaceContainer', radius: 0 });
-    /* 旧版是两行 headMd 大标题 + 左右胶囊的"海报式"排版，标题区占到 116px ——
-       小屏上 23% 的纵向空间给了静态标题，内容区（成长树）反而被挤。
-       现在品牌左对齐（app bar 的标准形态），图鉴/设置两枚低频入口收进右侧图标位。 */
-    mdText('PIXEL RAIDER', 22, mdTextY(0, BAR_H, 'titleSm'), 'titleSm', 'onSurface', { weight: 700 });
-    /* 两颗图标按钮：图鉴（book）与设置（tune）。
-       tonal 档让它们在 surfaceContainer 的 bar 上浮起一层可点的"容器"，
-       按压反馈由 mdIconButton 自己的 state layer 出。 */
+    // ===== ① [v1.8] 标题区 = 48px 紧凑 app bar（MENU_BAR_H），无边条吨：品牌字一行 + 两枚图标按钮 =====
+    /* 双字阶双色品牌：PIXEL 沉稳（onSurface）、RAIDER 主色点睛 ——
+       一行纯平字是"app 名称单日历"式的好看，但这种排版放在屏顶没有焦点。
+       全串先画完整一次（桩测试与可访问文本靠这一份），再把 RAIDER 叠成主色。 */
+    const brand = 'PIXEL RAIDER';
+    mdText(brand, 22, mdTextY(0, BAR_H, 'titleSm'), 'titleSm', 'onSurface', { weight: 700 });
+    const bw1 = mdTextWidth('PIXEL ', 'titleSm', 700), bwAll = mdTextWidth(brand, 'titleSm', 700);
+    mdText('RAIDER', 22 + bw1, mdTextY(0, BAR_H, 'titleSm'), 'titleSm', 'primary', { weight: 700 });
+    /* 品牌下划线主色小段：顶栏的视觉锚，2px 宽发线，不落整页。 */
+    fillRoundRect(22, BAR_H - 6, Math.max(8, bwAll * 0.5), 2, 1, mdRole('primary'));
     const cbIc = MENU_CODEX_BTN, gbIc = MENU_SETTINGS_BTN;
     mdIconButton(cbIc.x + cbIc.w / 2, cbIc.y + cbIc.h / 2, 'book', { tonal: true });
+    const ibIc = MENU_INFO_BTN;
+    mdIconButton(ibIc.x + ibIc.w / 2, ibIc.y + ibIc.h / 2, 'info', { tonal: true });
     mdIconButton(gbIc.x + gbIc.w / 2, gbIc.y + gbIc.h / 2, 'settings', { tonal: true });
-    // app bar 与内容区的分界：hairline 画在带的下沿
-    mdDivider(0, BAR_H - 1, W, { role: 'outlineVariant' });
+    // 顶栏与内容区的分界改成淡入淡出线：保留分隔语义但不把两区钉死
+    mdDivider(22, BAR_H - 1, W - 44, { role: 'outlineVariant', alpha: 0.5 });
   });
 
   /* 情境文案：给主菜单一句"你在哪里、这是第几次出航"。打字机是内容节奏，不是装饰。
@@ -11771,6 +12228,9 @@ function drawMenu() {
     if (menuPage === 0) {
       // ===== 成长页 =====
       drawGrowthTree(sa.x, cY, sa.w, cH);
+    } else if (menuPage === 2) {
+      // ===== [v1.8] 芯片页：军备独立成页 =====
+      drawChipPage(sa.x, cY, sa.w, cH);
     } else {
       // ===== 战绩页：监护仪（四项 = 四个监测通道） =====
       /* 为什么传角色名而不是旧 hex：这四个值今天能跟主题，只是因为 MD_LEGACY_TXT 里
@@ -11791,24 +12251,37 @@ function drawMenu() {
 
   /* ===== ⑤ [v1.7] 动作行：开始游戏全宽独占（图鉴已升入顶栏图标位） =====
      主菜单的主线只剩一件事；主操作不再与次要入口分食一行宽度。 */
-  /* [v1.7c] 入场第 3 档：主按钮（开始游戏） */
+  /* [v1.7c] 入场第 3 档：主按钮（开始游戏）
+     [v1.8] 加 play 图标 + elevation：它是本屏唯一主操作，必须"弹"起来。 */
   menuGrp(3, () => {
     const sb = MENU_START_BTN;
-    mdButton(sb.x, sb.y, sb.w, sb.h, '开 始 游 戏', 'filled', { role: 'bodyLg' });
+    mdSurface(sb.x, sb.y, sb.w, sb.h, { role: 'primary', radius: sb.h / 2, elev: 2, tint: true });
+    const sbPa = mdPressA(sb.x, sb.y, sb.w, sb.h);
+    if (sbPa > 0) mdStateLayer(sb.x, sb.y, sb.w, sb.h, sb.h / 2, sbPa, 'onPrimary');
+    const lbl = '开 始 游 戏';
+    const lw2 = mdTextWidth(lbl, 'bodyLg', 500);
+    const icS = sb.h * 0.5, gapIc = 4;
+    const gx = sb.x + (sb.w - lw2 - icS - gapIc) / 2;
+    mdIcon('play', gx + icS / 2, sb.y + sb.h / 2, icS, 'onPrimary', { lw: 2 });
+    mdText(lbl, gx + icS + gapIc, mdTextY(sb.y, sb.h, 'bodyLg'), 'bodyLg', 'onPrimary', { weight: 500 });
+    /* [v1.8] 每日挑战辅按钮：今天所有人玩同一盘棋（日期种子定武器）。 */
+    const db = MENU_DAILY_BTN;
+    if (db.w > 40) mdButton(db.x, db.y, db.w, db.h, '每日挑战', 'tonal', { icon: 'trophy' });
   });
 
   // ===== ⑥ 页脚：成就进度（分区标题用字阶，进度条 3px 轨道 + success 已达成段） =====
   /* [v1.7c] 入场第 4 档：页脚（成就进度 + 版权） */
   menuGrp(4, () => {
     let done = 0; for (const a of ACHIEVEMENTS) if (achievements[a.id]) done++;
-    /* 三个 y 全读 MENU_LAYOUT —— 命中区、预算、绘制同一套坐标。
-       绘制端自己 -14 / +12 的旧写法是"预算里没有标题带和条"的直接原因。 */
+    /* 三个 y 全读 MENU_LAYOUT —— 命中区、预算、绘制同一套坐标。 */
     const ML = MENU_LAYOUT;
     mdSection(22, ML.footTop, W - 44, '成 就 进 度');
-    const fw2 = 90, fx2 = (W - fw2) / 2;
-    mdProgress(fx2, ML.footBarY, fw2, 3, ACHIEVEMENTS.length ? done / ACHIEVEMENTS.length : 0,
+    /* [v1.8] 页脚行改"trophy 图标 + 计数 左 | 进度条摊开"：旧版 90px 短条居中 +
+       计数行单独成字，视觉上是一堆工具线。摊开后左边的语境与占满宽度的条纹对齐分明。 */
+    mdIcon('trophy', 30, ML.footY + 5, 11, 'success');
+    mdText('成就 ' + done + ' / ' + ACHIEVEMENTS.length, 40, ML.footY, 'label', 'success');
+    mdProgress(22, ML.footBarY, W - 44, 3, ACHIEVEMENTS.length ? done / ACHIEVEMENTS.length : 0,
       { role: 'success', trackRole: 'surfaceContainerHighest' });
-    mdTextC('成就 ' + done + '/' + ACHIEVEMENTS.length, W / 2, ML.footY, 'label', 'success');
     // 版权标识：右下角最底部一行。AGPL 要求保留版权声明
     mdText('© 2026 B站UP主：慕雪QnQ · AGPL-3.0', W - 8, H - 13, 'label', 'onSurfaceVariant',
       { align: 'right', alpha: 0.8 });
@@ -11836,7 +12309,7 @@ function drawCodexPage() {
      CODEX_TAB_BTN（命中端读的还是这个数组），带的位置 y 与带高 h 仍归 layoutButtons 拥有。 */
   const band0 = CODEX_TAB_BTN[0], bandN = CODEX_TAB_BTN[CODEX_TAB_BTN.length - 1];
   const codexTabRects = mdTabs(band0.x, band0.y, (bandN.x + bandN.w) - band0.x, band0.h,
-    CODEX_TABS.map(function (tt) { return tt.text; }), codexPage.tab);
+    CODEX_TAB_LABELS, codexPage.tab);
   for (let i = 0; i < CODEX_TAB_BTN.length && i < codexTabRects.length; i++) {
     const b = CODEX_TAB_BTN[i];
     b.x = codexTabRects[i].x; b.y = codexTabRects[i].y;
@@ -11886,6 +12359,215 @@ function drawHelpContent() {
     }
   });
 }
+
+/* [v1.8] 版本更新页：独立弹窗，每个版本一张卡片（版本号 + 主题 + 明细）。 */
+const VERSION_LOG = [
+  { v: 'v1.9', t: '爆炸重核 · 音效柔和化',
+    d: [
+      '爆炸加矩形碎片层：长条飞片放射，不再只有同心圆',
+      'BGM 重构四声部：Bass/Pad/Lead/Hat，Am-F-C-G 和弦进行 4 bar 循环',
+      'Lead 每两圈走高八度答句，Bass 尾部走经过音（walk-up）',
+      '全音效柔和化：增益下调 30-40%、方波/锯齿波 1600Hz 脱刺、15ms 软起音',
+      'UI 提示音方波→正弦，爆炸噪声滤波 800Hz'
+    ] },
+  { v: 'v1.8', t: '去负重 · 收尾统一',
+    d: [
+      '重生系统整体移除：按钮/乘区/重建期全部下线',
+      '伤害卡解除总上限（原封顶 +20%），每张 +4% 不封顶',
+      '全界面 MD3 收尾：主菜单双色品牌字、暂停战况配图标',
+      '新增每日挑战：同一天同一武器开局，锁武器，返 +3 芯片',
+      '新增本更新页；彩蛋：连点品牌字 5 次换主题'
+    ] },
+  { v: 'v1.7', t: '界面 2.0 与精灵重绘',
+    d: [
+      '主菜单/局内 HUD/暂停/结算按 MD3 全部重排，动画补齐',
+      '全部角色与 Boss 精灵按"形状说机制"重绘',
+      '精英怪登场（第 4 波起），每型有专属弹幕',
+      '命中环重构"打 ≠ 炸"；散射弹数修复；FPS 诊断面板'
+    ] },
+  { v: 'v1.6', t: 'MD3 收口与健壮性',
+    d: [
+      'MD3 组件库全面收敛：颜色令牌/字阶/形状/组件统一来源',
+      '主题引擎换肤全联动（含精灵烘焙排队重烘）',
+      '热修系列：存档读写防线、渲染帧级容错、死代码清理'
+    ] },
+  { v: 'v1.5', t: '敌人机制与技能树加深',
+    d: [
+      '快速机蛇形走位、护盾机左右弧、自爆机引信博弈',
+      '成长树 5 → 10 级，收益分段加重',
+      '激光判定从"点"改"整条刃"，伤害卡 +4%/张'
+    ] },
+  { v: 'v1.4hotfix', t: '主线健壮性热修',
+    d: ['存档读写全线 safeSet、渲染帧级容错、炸不中断开局'] },
+  { v: 'v1.4', t: '成长树与 MD3 系统登场',
+    d: [
+      '局外成长树：芯片掉落 + 8 项永久属性',
+      'MD3 设计系统落地：色板/字阶/圆角/组件库',
+      '特效分层结构化：爆炸分级、对象池、空间网格碰撞'
+    ] },
+  { v: 'v1.3', t: 'HUD 重排与僚机强化',
+    d: [
+      'HUD 从新排五区：生命/护盾/过载/敌人四条齐列',
+      '设置页新增画质 4 档分段按钮',
+      '僚机弹改追踪制 + 三连引爆；局内不再显示玩家名'
+    ] },
+  { v: 'v1.2', t: '主菜单垮掉式入场',
+    d: [
+      '主菜单按条带垮塌式入场、暂停菜单退场动画',
+      '暂停菜单按钮动画接入独立 UI 时钟',
+      '武器弹幕按形态重改：尖锥/长刃/扇形粒/带翼弹头'
+    ] },
+  { v: 'v1.1', t: '护盾点数制与事件系统',
+    d: [
+      '护盾 8 秒 → 100 点，与血量同构的第二管血',
+      '道具栏 3 → 5 格；超载改 30 秒冷却制',
+      '8 种好/坏状态 + 5 种随机事件；左下角 toast 提示'
+    ] },
+  { v: 'v1.0', t: '细腻化与太空感',
+    d: [
+      '心形血量 → 100 滴连续血条，伤害按撞机/子弹分制',
+      '太空背景：4 星区色相漂移、5 层视差星场',
+      '流星与尘埃带；锁定标记与屏边危险脉冲'
+    ] },
+  { v: 'v0.5', t: '性能打底',
+    d: [
+      '发光预渲染位图、对象池、碰撞层剔除',
+      '5 层真视差星场；BGM 双总线预调度'
+    ] },
+  { v: 'v0.1', t: '原型',
+    d: ['像素弹幕射击雏形：心形血量、同速星点、基础波形敌人'] }
+];
+/* ---- 更新页：一版本一卡（自适应高度）+ 拖动滚动 ----
+   每行高度不同（明细多的版本卡高），不走 mdScrollList 的等高槽，
+   直接手算总高与裁剪窗口；updScroll 由 pointermove 拖动/键盘方向推进。 */
+const UPD_CARD_PAD = 8, UPD_CARD_GAP = 6;
+/* [v1.8] 点开一张卡=弹出独立详情窗（下方本卡列表不动）；点卡片本身只选中、不再内联展开。 */
+let updScroll = 0, updMaxScroll = 0, updDragging = false, updLastY = 0, updStartY = 0;
+let updDetail = null, updDetailActive = false, updDetailClosing = false;
+let updPressV = null, updMoved = false;
+const UPD_RECTS = [];
+/* 详情窗的命中区（由 drawUpdDetail 每帧写回）。 */
+const UPD_DETAIL_RECT = { x: 0, y: 0, w: 0, h: 0 };
+const UPD_DETAIL_BTN = { x: 0, y: 0, w: 0, h: 0 };
+function updCardH(e) {
+  /* 卡片本体只留一行导引：明细全部进详情窗，列表长高稳定。 */
+  return UPD_CARD_PAD * 2 + mdType('bodyLg') + 4 + (mdType('label') + 2);
+}
+function drawUpdatePage() {
+  pushModalAnim('update');
+  const a = Math.max(0, Math.min(1, animV('update')));
+  mdScrim('modal', a);
+  ctx.save();
+  try {
+    ctx.globalAlpha = a;
+    mdSurface(0, 0, W, H, { role: 'surface', radius: 0 });
+  } finally { ctx.restore(); }
+  mdTopAppBar(0, PAGE_TOP_H, { title: '更新' });
+  const x = 22, w = W - 44;
+  const top = PAGE_TOP_H + 10;
+  const outerH = Math.max(48, (SET_BTN.back.y - 12) - top);
+  mdCard(x, top, w, outerH, { role: 'surfaceContainerLow', radius: SHAPE.lg, elev: 1 });
+  const pad = LAYOUT.pad();
+  const vx = x + pad, vw = w - pad * 2, vy = top + pad, vh = outerH - pad * 2;
+  /* 内容总高 → 滚动上限（卡高随展开分页） */
+  let totalH = -UPD_CARD_GAP;
+  for (const e of VERSION_LOG) totalH += updCardH(e) + UPD_CARD_GAP;
+  updMaxScroll = Math.max(0, totalH - vh);
+  updScroll = mdClamp(updScroll, 0, updMaxScroll);
+  /* 视口内裁剪逐卡绘制，越界的整卡跳过（不算墨迹） */
+  UPD_RECTS.length = 0;
+  ctx.save();
+  try {
+    ctx.beginPath(); ctx.rect(vx, vy, vw, vh); ctx.clip();
+    let ty = vy - updScroll;
+    for (const e of VERSION_LOG) {
+      const ch = updCardH(e);
+      UPD_RECTS.push({ v: e.v, x: vx, y: ty, w: vw, h: ch });
+      if (ty + ch > vy && ty < vy + vh) {
+        mdCard(vx, ty, vw, ch, { role: 'surfaceContainer', radius: SHAPE.md, elev: 1 });
+        const pa = mdPressA(vx, ty, vw, ch);
+        if (pa > 0) mdStateLayer(vx, ty, vw, ch, SHAPE.md, pa, 'onSurface');
+        /* 标题行 = 版本号徽标 + 主题（徽标与文字同一条中线）。 */
+        const titleRole = 'bodyLg';
+        const titleY = ty + UPD_CARD_PAD;
+        const badgeW = Math.max(12, mdTextWidth(e.v, 'label', 600) + 6);
+        const badgeCy = titleY + mdType(titleRole) / 2;
+        mdBadge(vx + UPD_CARD_PAD + badgeW / 2, badgeCy, e.v, 'primaryContainer');
+        /* 标题按徽标让出的实际余宽截断，长主题不再捅出卡片右缘。 */
+        const tMaxW = vx + vw - UPD_CARD_PAD - (vx + UPD_CARD_PAD + badgeW + 6);
+        mdText(mdEllipsis(e.t, Math.max(10, tMaxW), titleRole, 600),
+          vx + UPD_CARD_PAD + badgeW + 6,
+          mdTextY(titleY, mdType(titleRole), titleRole), titleRole, 'onSurface', { weight: 600 });
+        mdDivider(vx + UPD_CARD_PAD, titleY + mdType(titleRole) + 3, vw - UPD_CARD_PAD * 2, { role: 'outlineVariant' });
+        let ly = titleY + mdType(titleRole) + 4 + 2;
+        mdText('点开看 ' + e.d.length + ' 条明细', vx + UPD_CARD_PAD + 4, ly, 'label', 'primary', { weight: 500 });
+      }
+      ty += ch + UPD_CARD_GAP;
+    }
+  } finally { ctx.restore(); }
+  /* 滚动条：只有内容超页才画 */
+  if (updMaxScroll > 0) {
+    mdScrollbar(x + w - 6, vy, vh, vh / totalH, { pos: updScroll / updMaxScroll, w: 2 });
+  }
+  const bb = SET_BTN.back;
+  mdButton(bb.x, bb.y, bb.w, bb.h, '返回', 'tonal');
+  popModalAnim();
+  if (updDetailActive) drawUpdDetail();   // [v1.8] 详情窗盖在更新页之上
+}
+/* [v1.8] 长行按宽度折行：贪心量宽、逐字推换行。
+   中文长句一行塞不下会越出卡片右缘，尽头不是截断而是换行。 */
+function wrapLines(text, maxW, role, weight) {
+  const out = [];
+  let cur = '';
+  for (const ch of String(text)) {
+    const nxt = cur + ch;
+    if (cur && mdTextWidth(nxt, role, weight) > maxW) { out.push(cur); cur = ch; }
+    else cur = nxt;
+  }
+  if (cur) out.push(cur);
+  return out.length ? out : [''];
+}
+/* [v1.8] 版本卡片点击后的独立详情窗：大标题 + 逐条明细 + 关闭。 */
+function drawUpdDetail() {
+  const e = updDetail;
+  if (!e) return;
+  const a = mdClamp(animV('verd'), 0, 1);
+  mdScrim('dialog', a);
+  ctx.save();
+  try {
+    ctx.globalAlpha = a;
+    const pad = LAYOUT.pad();
+    const cw = W - 56;
+    const innerW = cw - pad * 2 - 6;
+    const titleH = mdType('headSm');
+    const btnH = 26;
+    /* 超宽按字符贪心折行 —— 中文明细一行塞不下卡片右缘（截图实证）。 */
+    const wrapped = [];
+    for (const d of e.d) for (const ln of wrapLines('· ' + d, innerW, 'label', 500)) wrapped.push(ln);
+    const lineH = mdType('label') + 3;
+    const ch = pad * 2 + titleH + 6 + wrapped.length * lineH + 8 + btnH;
+    const cx = 28, cy = Math.max(HUD_H, (H - ch) / 2);
+    UPD_DETAIL_RECT.x = cx; UPD_DETAIL_RECT.y = cy; UPD_DETAIL_RECT.w = cw; UPD_DETAIL_RECT.h = ch;
+    mdCard(cx, cy, cw, ch, { role: 'surfaceContainerLow', radius: SHAPE.lg, elev: 3 });
+    const badgeW = Math.max(12, mdTextWidth(e.v, 'label', 600) + 6);
+    mdBadge(cx + pad + badgeW / 2, cy + pad + titleH / 2, e.v, 'primaryContainer');
+    /* 标题也要受右缘约束：徽标已经让出一段，剩下的宽度是"标题可用宽"，超了就截省号，
+       否则一行 headSm 会长出卡片。 */
+    const titleMaxW = cx + cw - pad - (cx + pad + badgeW + 8);
+    mdText(mdEllipsis(e.t, titleMaxW, 'headSm', 700), cx + pad + badgeW + 8,
+      mdTextY(cy + pad, titleH, 'headSm'), 'headSm', 'primary', { weight: 700 });
+    mdDivider(cx + pad, cy + pad + titleH + 4, cw - pad * 2, { role: 'outlineVariant' });
+    let ly = cy + pad + titleH + 10;
+    for (const ln of wrapped) {
+      mdText(ln, cx + pad + 2, ly, 'label', 'onSurfaceVariant', { weight: 500 });
+      ly += lineH;
+    }
+    const bw2 = 84, bx = cx + (cw - bw2) / 2, by = cy + ch - pad - btnH;
+    UPD_DETAIL_BTN.x = bx; UPD_DETAIL_BTN.y = by; UPD_DETAIL_BTN.w = bw2; UPD_DETAIL_BTN.h = btnH;
+    mdButton(bx, by, bw2, btnH, '关 闭', 'tonal');
+  } finally { ctx.restore(); }
+}
+
 
 /* 齿轮图标：外圈 + 8 个齿 + 中心孔，纯 Path 绘制。
    转速随呼吸做极缓慢摆动，静止时不转（转太快会像加载动画，反而误导）。 */
@@ -12049,7 +12731,9 @@ function drawSetRow(y, label, fillRatio, opts) {
   const x = 22, w = W - 44;
   mdText(label, x + C.LABEL.pad, mdTextY(y, RH, 'body'), 'body', 'onSurfaceVariant');
   const t = setVolTrack(y, RH, label);
-  SET_BTN.vol.track = t;
+  /* [v1.8] opt.store：轨道矩形写到哪个宿主（默认 SET_BTN.vol）——
+     透明度/模糊度滑块复用同一行件，只是宿主不同。 */
+  (opts.store || SET_BTN.vol).track = t;
   mdSlider(t.x, y + RH / 2, t.w, fillRatio, { disabled: !!opts.disabled });
 }
 
@@ -12066,34 +12750,54 @@ function drawSettingsPage() {
     ctx.globalAlpha = a;
     mdSurface(0, 0, W, H, { role: 'surface', radius: 0 });
   } finally { ctx.restore(); }
-  mdTopAppBar(0, PAGE_TOP_H, { title: '设置' });
 
-  // 数据源：本机存档统计，与主菜单战绩卡同源但只取"历史累计"
-  const statItems = [
-    /* 同 GRADE_COLOR：这四枚是给 drawSetStatRow 的语义档，直接写角色名，
-       不再让"迁移账"（MD_LEGACY_TXT）当运行时契约。消费点对角色名原样透传。 */
-    ['游戏次数', String(stats.gamesPlayed), 'onSurfaceVariant'],
-    ['最高分', String(state.hi).padStart(6, '0'), 'coin'],
-    ['最高波次', String(stats.maxWave), 'warning'],
-    ['总击杀', String(stats.totalKills), 'success']
-  ];
-  const z = {}; for (const q of SET_ZONES) z[q.key] = q;
-  /* [v1.7] 四分区纵向流：可调项置顶、只读数据沉底。
-     分区标题（mdSection）由各区块自己在卡上方画 —— DENSE 下自动退场。 */
-  /* [v1.7c] 分区级联入场：面板 fade（a）之后五块分区依次落位，
-     per=0.1 → 末块在 a>0.4 后启动、a=1 全部到位 —— 一次性，播完即静止。 */
-  const setStag = (i2, fn) => {
-    const p = easeOutCubic(staggerV(a, i2, 0.1));
-    if (p >= 1) { fn(); return; }
-    ctx.save();
-    try { ctx.globalAlpha *= p; ctx.translate(0, (1 - p) * 6); fn(); }
-    finally { ctx.restore(); }
-  };
-  setStag(0, () => drawSettingsPers(z));                    // 个性化：用户名行 + 主题色块
-  setStag(1, () => drawSettingsSnd(z));                     // 音效：静音开关 + 音量滑块
-  setStag(2, () => drawSettingsDisp(z));                    // 画面：FPS 开关 + 画质分段
-  setStag(3, () => drawSettingsStat(z.stat, statItems));    // 本机数据：2×2 统计格（DENSE 为空区）
-  setStag(4, () => drawSettingsDanger(z));                  // 清除存档 + 页脚 + 返回
+  /* [v1.8] 设置 = 主页按钮列表（个性化/音效/画面/本机数据），点开进独立子页；
+     各分区从此独占整页高度，再也不用压缩挤叠到返回钮上。 */
+  const sub = SET_SUBS.find(s => s.key === SET_SUB);
+  mdTopAppBar(0, PAGE_TOP_H, { title: sub ? sub.name : '设置', navIcon: sub ? 'back' : null, navId: 'set:back-hub' });
+  if (sub) {
+    /* 子页：顶栏 back 到主页；「返回」回上层菜单保持不变（出去再进来还是主页）。 */
+    const z = {}; for (const q of SET_ZONES) z[q.key] = q;
+    const statItems = [
+      ['游戏次数', String(stats.gamesPlayed), 'onSurfaceVariant'],
+      ['最高分', String(state.hi).padStart(6, '0'), 'coin'],
+      ['最高波次', String(stats.maxWave), 'warning'],
+      ['总击杀', String(stats.totalKills), 'success']
+    ];
+    if (sub.key === 'pers') drawSettingsPers(z);
+    else if (sub.key === 'snd') drawSettingsSnd(z);
+    else if (sub.key === 'disp') drawSettingsDisp(z);
+    else drawSettingsStat(z.stat, statItems);
+    const b = SET_BTN.back;
+    mdButton(b.x, b.y, b.w, b.h, '返回', 'tonal');
+    popModalAnim();
+    return;
+  }
+  /* 主页：四枚分区卡 + 清除存档 + 返回。 */
+  const top = PAGE_TOP_H + 10, cardH = 46, gap = 8;
+  for (let i = 0; i < SET_SUBS.length; i++) {
+    const s = SET_SUBS[i], y = top + i * (cardH + gap);
+    SET_HUB_BTNS[i].x = 22; SET_HUB_BTNS[i].y = y; SET_HUB_BTNS[i].w = W - 44; SET_HUB_BTNS[i].h = cardH;
+    mdCard(22, y, W - 44, cardH, { role: 'surfaceContainerHigh', radius: SHAPE.md, elev: 1 });
+    const pa = mdPressA(22, y, W - 44, cardH);
+    if (pa > 0) mdStateLayer(22, y, W - 44, cardH, SHAPE.md, pa, 'onSurface');
+    const icS = 20;
+    mdIcon(s.icon, 22 + LAYOUT.pad() + icS / 2, y + cardH / 2, icS, 'primary');
+    const bH = mdType('bodyLg') + 2 + mdType('label');
+    mdText(s.name, 22 + LAYOUT.pad() + icS + 10, y + (cardH - bH) / 2, 'bodyLg', 'onSurface', { weight: 600 });
+    mdText(s.desc, 22 + LAYOUT.pad() + icS + 10, y + (cardH - bH) / 2 + mdType('bodyLg') + 2, 'label', 'onSurfaceVariant');
+    mdIcon('sort', 22 + W - 44 - 22 - 8, y + cardH / 2, 12, 'onSurfaceVariant', { alpha: 0.8 });
+  }
+  /* 主页底部：危险区（清除存档）+ 返回，钉在底部两行，不与内容重叠。 */
+  {
+    const rb = SET_BTN.reset, bb = SET_BTN.back;
+    rb.x = 22; rb.w = W - 44; rb.h = 26; rb.y = bb.y - 30;
+    mdText('主菜单顶栏齿轮 → 各分区独立页', W / 2, rb.y - mdType('label') - 2, 'label', 'onSurfaceVariant', { align: 'center' });
+    mdButton(rb.x, rb.y, rb.w, rb.h, resetConfirm ? '再点一次确认清除' : '清除本地存档',
+      resetConfirm ? 'destructive' : 'outlined');
+    mdText('AGPL-3.0 开源 · 单文件零依赖', W / 2, bb.y + bb.h + 6, 'label', 'onSurfaceVariant', { align: 'center' });
+    mdButton(bb.x, bb.y, bb.w, bb.h, '返回', 'tonal');
+  }
   popModalAnim();
 }
 
@@ -12105,7 +12809,7 @@ function drawSettingsStat(zone, items) {
      被先看到的是只读数据；DENSE 横屏该区高度为 0（数据在主菜单战绩页
      与暂停面板都有），砍它不砍控件。 */
   if (!zone || !zone.h) return;
-  setSection(zone, '本机数据');          // 分区标题（DENSE 下与本区一起退场）
+  setSection(zone, '本机数据', 'sort');   // 分区标题（DENSE 下与本区一起退场）
   mdCard(22, zone.y, W - 44, zone.h, { role: 'surfaceContainer', radius: SHAPE.lg, elev: 1 });
   const n = items.length;
   const pad = 3, gap = 4;
@@ -12120,18 +12824,22 @@ function drawSettingsStat(zone, items) {
 
 /* 单行统计：标签暗压在左，数值亮浮在右，中间渐变线衔接。
    竖排四张卡比横排四列更适合"设置页里的附属信息"——它不该抢走整屏宽度。 */
-function drawSetStatRow(x, y, w, h, label, value, color) {
+function drawSetStatRow(x, y, w, h, label, value, color, opt) {
   /* 只读统计行 = 一层容器 + 左标签 + 右数值。竖色条/渐变接缝/端点辉光都已删：
      MD3 的分组靠 tonal 层级，不靠颜色噪音。数值颜色经 mdLegacyTxt 认回角色，
-     于是它跟着主题走，而不是钉死在某个十六进制上。 */
+     于是它跟着主题走，而不是钉死在某个十六进制上。
+     [v1.8] opt.icon：标签前可加矢量记号——八格战况卡成列时，形状是最快的扫读通道。 */
+  opt = opt || {};
   mdSurface(x, y, w, h, { role: 'surfaceContainerHigh', radius: SHAPE.sm });
-  /* 数值用大一号是有条件的：窄格里「000000」能吃掉 44px，
-     留给标签的就不够三个字了 —— 挤的时候标签与数值同字号。 */
   const vRole = (h >= 14 && w >= 100) ? 'bodyLg' : 'body';
   const vw = mdTextWidth(String(value), vRole, 600);
-  const lw = Math.max(10, w - LAYOUT.padSm() * 2 - vw - 6);
-  mdText(mdEllipsis(label, lw, 'body', 500), x + LAYOUT.padSm(), mdTextY(y, h, 'body'), 'body', 'onSurfaceVariant', { weight: 500 });
-  mdText(value, x + w - LAYOUT.padSm(), mdTextY(y, h, vRole), vRole, color ? mdLegacyTxt(color) : MD3.onSurface, { align: 'right', weight: 600 });
+  const pad = LAYOUT.padSm();
+  const icS = opt.icon ? Math.min(12, Math.max(9, h - 12)) : 0;
+  const lx = x + pad + (icS ? icS + 3 : 0);
+  const lw = Math.max(10, w - pad * 2 - vw - 6 - (icS ? icS + 3 : 0));
+  if (icS) mdIcon(opt.icon, x + pad + icS / 2, y + h / 2, icS, color ? mdLegacyTxt(color) : 'onSurfaceVariant', { alpha: 0.85 });
+  mdText(mdEllipsis(label, lw, 'body', 500), lx, mdTextY(y, h, 'body'), 'body', 'onSurfaceVariant', { weight: 500 });
+  mdText(value, x + w - pad, mdTextY(y, h, vRole), vRole, color ? mdLegacyTxt(color) : MD3.onSurface, { align: 'right', weight: 600 });
 }
 
 /* 拨动开关：布尔设置的正确控件。
@@ -12162,7 +12870,16 @@ function setKit() {
     if (a > 0) mdStateLayer(RX, y, RW, rowH, SHAPE.sm, a,
       role === 'errorContainer' ? 'onErrorContainer' : 'onSurface');
   };
-  const rowLabel = (y, s, role) => mdText(s, RX + C.LABEL.pad, mdTextY(y, rowH, 'body'), 'body', role || 'onSurfaceVariant');
+  /* [v1.8] rowLabel 支持行图标：形状比文字先被扫读到（静音→mute、音量→sound…）。 */
+  const rowLabel = (y, s, role, icon) => {
+    let lx = RX + C.LABEL.pad;
+    if (icon != null) {
+      const icS = Math.min(13, rowH - 10);
+      mdIcon(icon, lx + icS / 2, y + rowH / 2, icS, 'onSurfaceVariant', { alpha: 0.9 });
+      lx += icS + 7;
+    }
+    mdText(s, lx, mdTextY(y, rowH, 'body'), 'body', role || 'onSurfaceVariant');
+  };
   /* 视觉高度钳在 14..22：横屏 rowH=18 时开关不再被压成细条。
      命中带不在这里决定 —— 整行命中由 SET_BTN.mute/fps 的行矩形负责。 */
   const swAt = (y, on, k, role) => {
@@ -12177,10 +12894,12 @@ function setKit() {
   };
   return { C: C, rowH: rowH, RX: RX, RW: RW, row: row, rowLabel: rowLabel, swAt: swAt, swKey: swKey };
 }
-/* 分区标题带：DENSE（横屏）下退场 —— 布局端 showHeads=false 与这里同一条判据。 */
-function setSection(z, label) {
-  if (DENSE) return;
-  mdSection(22, z.y - (mdType('titleSm') + 4), W - 44, label);
+/* 分区标题带：DENSE（横屏）下退场 —— 布局端 showHeads=false 与这里同一条判据。
+   [v1.8] 支持图标参数（icon 与文字同行，图标是区块的先读记号）。 */
+function setSection(z, label, icon) {
+  // [v1.8] 分区标题只在设置主页画；子页顶栏就是分区的名字，重复一行就是叠字。
+  if (DENSE || SET_SUB) return;
+  mdSection(22, z.y - (mdType('titleSm') + 4), W - 44, label, 'primary', icon);
 }
 
 /* 个性化：用户名（改名入口唯一化在这一行）+ 主题色块。 */
@@ -12188,16 +12907,41 @@ function drawSettingsPers(z) {
   /* 玩家就是在这六个色块上切主题的：这屏画到之前状态栏不该还挂上一套肤的颜色。 */
   mdSyncMetaTheme();
   const k = setKit();
-  setSection(z.pers, '个性化');
+  setSection(z.pers, '个性化', 'person');
   mdCard(22, z.pers.y, W - 44, z.pers.h, { role: 'surfaceContainer', radius: SHAPE.lg, elev: 1 });
   {
     const ny = SET_RIGHT.rows[0];
     k.row(ny);
-    k.rowLabel(ny, '用户名');
+    k.rowLabel(ny, '用户名', null, 'edit');
     const penX = k.RX + k.RW - 12;
     const maxW = Math.max(20, penX - 16 - (k.RX + k.C.LABEL.pad + mdTextWidth('用户名', 'body') + 8));
     mdText(mdEllipsis(username, maxW, 'body', 500), penX - 16, mdTextY(ny, k.rowH, 'body'), 'body', 'onSurface', { align: 'right', weight: 500 });
     mdIcon('edit', penX - 5, ny + k.rowH / 2, Math.min(12, k.rowH - 6), 'primary', { lw: 1.5 });
+  }
+  /* [v1.8] 背景图行（选择/清除）+ 透明度滑块 + 模糊度滑块。 */
+  {
+    const y = SET_RIGHT.rows[6];
+    k.row(y);
+    k.rowLabel(y, '背景图', null, 'image');
+    /* 右端两枚小钮：选择图片（fonal 主）/ 清除（outlined） */
+    const rbW = 52, rbH = Math.min(k.rowH - 4, 20);
+    const rbX2 = k.RX + k.RW - 6 - rbW, rbX1 = rbX2 - 4 - rbW, rbY = y + (k.rowH - rbH) / 2;
+    SET_BTN.bgpick.x = rbX1; SET_BTN.bgpick.y = rbY; SET_BTN.bgpick.w = rbW; SET_BTN.bgpick.h = rbH;
+    SET_BTN.bgclear.x = rbX2; SET_BTN.bgclear.y = rbY; SET_BTN.bgclear.w = rbW; SET_BTN.bgclear.h = rbH;
+    mdButton(rbX1, rbY, rbW, rbH, '选择图片', 'tonal');
+    mdButton(rbX2, rbY, rbW, rbH, '清除', 'outlined');
+    mdText(bgReady ? '已设' : '未设置', rbX1 - 8, mdTextY(y, k.rowH, 'label'), 'label', 'onSurfaceVariant', { align: 'right' });
+  }
+  /* DENSE 下两条滑块行不画（布局端 y=-999，同判据）。 */
+  if (!DENSE) {
+    const y = SET_RIGHT.rows[7];
+    k.row(y);
+    drawSetRow(y, '透明度', bgSet.alpha, { rowH: k.rowH, store: SET_BTN.bgalpha });
+  }
+  if (!DENSE) {
+    const y = SET_RIGHT.rows[8];
+    k.row(y);
+    drawSetRow(y, '模糊度', bgSet.blur / 12, { rowH: k.rowH, store: SET_BTN.bgblur });
   }
   /* 主题色块（状态语言同旧版：选中 = secondaryContainer + 勾；未选 = Highest；
      圆点是**主题身份的样本色**（内容），不是装饰）。位置读布局写回的 SET_BTN.theme。 */
@@ -12222,7 +12966,7 @@ function drawSettingsPers(z) {
 /* 音效：静音开关（布尔用开关，不用程度条）+ 音量滑块。 */
 function drawSettingsSnd(z) {
   const k = setKit();
-  setSection(z.snd, '音效');
+  setSection(z.snd, '音效', 'sound');
   mdCard(22, z.snd.y, W - 44, z.snd.h, { role: 'surfaceContainer', radius: SHAPE.lg, elev: 1 });
   const muted = Audio.isMuted;
   const vol = muted ? 0 : Audio.volume;
@@ -12231,7 +12975,7 @@ function drawSettingsSnd(z) {
     const y = SET_RIGHT.rows[1];
     /* 静音是危险态：整行升 errorContainer，开关走 error。 */
     k.row(y, muted ? 'errorContainer' : 'surfaceContainerHigh');
-    k.rowLabel(y, '静音', muted ? 'onErrorContainer' : 'onSurfaceVariant');
+    k.rowLabel(y, '静音', muted ? 'onErrorContainer' : 'onSurfaceVariant', muted ? 'mute' : 'sound');
     k.swAt(y, muted, muteK, 'error');
   }
   {
@@ -12244,13 +12988,13 @@ function drawSettingsSnd(z) {
 /* 画面：FPS 开关 + 画质分段。 */
 function drawSettingsDisp(z) {
   const k = setKit();
-  setSection(z.disp, '画面');
+  setSection(z.disp, '画面', 'image');
   mdCard(22, z.disp.y, W - 44, z.disp.h, { role: 'surfaceContainer', radius: SHAPE.lg, elev: 1 });
   const fpsK = k.swKey('fpsSw', showFps);
   {
     const y = SET_RIGHT.rows[3];
     k.row(y);
-    k.rowLabel(y, 'FPS 显示');
+    k.rowLabel(y, 'FPS 显示', null, 'gauge');
     k.swAt(y, showFps, fpsK, 'success');
   }
   {
@@ -12260,7 +13004,7 @@ function drawSettingsDisp(z) {
     const q = SET_BTN.qseg, n = q.length;
     if (n) {
       const gx = q[0].x, gw = q[n - 1].x + q[n - 1].w - gx;
-      const rects = mdSegmented(gx, q[0].y, gw, q[0].h, QUALITY_MODES.map(m => m.name), qualityMode, {});
+      const rects = mdSegmented(gx, q[0].y, gw, q[0].h, QUALITY_MODE_NAMES, qualityMode, {});
       for (let i = 0; i < n && i < rects.length; i++) {
         q[i].x = rects[i].x; q[i].y = rects[i].y; q[i].w = rects[i].w; q[i].h = rects[i].h;
       }
@@ -12610,10 +13354,14 @@ function drawPause() {
   try {
     ctx.globalAlpha = easeIn;
     ctx.translate(0, (1 - easeIn) * -12);
-    mdText('暂 停 中', W / 2, 16, 'headSm', 'primary', { align: 'center' });
-    /* 提示行落在"标题盒子下沿 → 分隔线"这一段的正中间：写死 y 会在 DENSE（headSm 14.1）
-       下把 3px 的余量一次性吃掉，字就贴上分隔线了。 */
-    const tBot = 16 + mdType('headSm');
+    /* [v1.8] 标题加 pause 图标：双短竖线让这一屏的语义在读字之前先被认出。 */
+    const tRole = 'headSm', tTxt = '暂 停 中';
+    const tW = mdTextWidth(tTxt, tRole, 700), tIcS = mdType(tRole) + 2;
+    const tX0 = W / 2 - (tW + tIcS + 8) / 2;
+    mdIcon('pause', tX0 + tIcS / 2, 16 + mdType(tRole) / 2, tIcS, 'primary', { lw: 2 });
+    mdText(tTxt, tX0 + tIcS + 8, 16, tRole, 'primary', { weight: 700 });
+    /* 提示行落在"标题盒子下沿 → 分隔线"这一段的正中间。 */
+    const tBot = 16 + mdType(tRole);
     mdText(isTouch ? '点击按钮操作' : 'P 继续 · R 重开 · M 音效', W / 2,
       mdTextY(tBot, 46 - tBot, 'label'), 'label', 'onSurfaceVariant', { align: 'center' });
   } finally { ctx.restore(); }
@@ -12669,16 +13417,17 @@ function drawPause() {
     };
     /* 数值颜色一律改成角色名（原来是 11 个钉死的十六进制）：'success' 表达"击杀/道具"、
        'coin' 表达"资源型好结果"、'warning' 表达"命中率偏低"，切主题整屏跟着换。 */
+    /* [v1.8] 每格加一个矢量记号（第四项）：扫读八格靠形状，数字靠颜色。 */
     const cells = [
-      ['存活', mmss(runTime), 'onSurface'],
-      ['击杀', String(runKills), 'success'],
-      ['DPS', dps.toFixed(2), dps > 3 ? 'coin' : 'onSurfaceVariant'],
-      ['波次', String(state.wave), 'primary'],
+      ['存活', mmss(runTime), 'onSurface', 'timer'],
+      ['击杀', String(runKills), 'success', 'missile'],
+      ['DPS', dps.toFixed(2), dps > 3 ? 'coin' : 'onSurfaceVariant', 'ult'],
+      ['波次', String(state.wave), 'primary', 'sort'],
       ['命中率', acc === null ? '—' : acc + '%',
-        acc === null ? 'onSurfaceVariant' : (acc >= 60 ? 'success' : (acc >= 35 ? 'coin' : 'warning'))],
-      ['道具', String(runPowerups), 'success'],
-      ['连击', 'X' + maxCombo, 'coin'],
-      ['分数', String(state.score).padStart(6, '0'), 'onSurface']
+        acc === null ? 'onSurfaceVariant' : (acc >= 60 ? 'success' : (acc >= 35 ? 'coin' : 'warning')), 'target'],
+      ['道具', String(runPowerups), 'success', 'magnet'],
+      ['连击', 'X' + maxCombo, 'coin', 'arc'],
+      ['分数', String(state.score).padStart(6, '0'), 'onSurface', 'chip']
     ];
     const gridTop = PY + 20;
     const gridBot = PY + PH - 8;
@@ -12724,7 +13473,7 @@ function drawPause() {
     const cH = Math.max(18, bodyTop + chartH - cY);
     {
       const segs = mdSegmented(chX, chY, chW, TAB_H,
-        TREND_METRICS.map(function (m) { return m.name; }), trendMetric);
+        TREND_METRIC_LABELS, trendMetric);
       /* 命中矩形仍由绘制端写回 PAUSE_TREND_TABS（点击端读的就是这一份）。
          分段控件没有段间缝，所以每段比旧的 tabW 宽 4/3px、高 10→12 —— 越点越准的方向。 */
       for (let i = 0; i < PAUSE_TREND_TABS.length && i < segs.length; i++) {
@@ -12798,7 +13547,7 @@ function drawPause() {
       ctx.save();
       try {
         ctx.globalAlpha = rp;
-        drawSetStatRow(cx, bandY, colW, bandH, cells[i][0], cells[i][1], cells[i][2]);
+        drawSetStatRow(cx, bandY, colW, bandH, cells[i][0], cells[i][1], cells[i][2], { icon: cells[i][3] });
       } finally { ctx.restore(); }
     }
   } finally { ctx.restore(); }
@@ -12815,28 +13564,27 @@ function drawPause() {
   const btnA2 = clamp01((pt - 0.44) / 0.4);
   const B = PAUSE_BUTTONS;
 
+  /* [v1.8] 五个按钮全部加图标：主操作 play 与危险出口 home 最先被读到，
+     次要行成就 trophy / 设置 settings 也不再靠逐字读。 */
   ctx.save();
   try {
     ctx.globalAlpha = btnA0;
-    mdButton(B.resume.x, B.resume.y, B.resume.w, B.resume.h, '继 续 作 战', 'filled', { role: 'bodyLg' });
+    mdButton(B.resume.x, B.resume.y, B.resume.w, B.resume.h, '继 续 作 战', 'filled', { role: 'bodyLg', icon: 'play' });
   } finally { ctx.restore(); }
 
-  /* [v1.7p] 重生行（全宽，tonal）：文案带当前费用与次数 —— 战略决策
-     的成本必须写在按钮上；与次要行同一档级联浮现。 */
+  /* [v1.8] 重生行已移除（重生系统整体下线）。 */
   ctx.save();
   try {
     ctx.globalAlpha = btnA1;
-    mdButton(B.rebirth.x, B.rebirth.y, B.rebirth.w, B.rebirth.h,
-      '重生 ' + rebirthCost() + '金 · 属性+5%' + (rebirths ? '（×' + rebirths + '）' : ''), 'tonal');
-    mdButton(B.ach.x, B.ach.y, B.ach.w, B.ach.h, '成 就', 'tonal');
-    mdButton(B.settings.x, B.settings.y, B.settings.w, B.settings.h, '设 置', 'outlined');
+    mdButton(B.ach.x, B.ach.y, B.ach.w, B.ach.h, '成 就', 'tonal', { icon: 'trophy' });
+    mdButton(B.settings.x, B.settings.y, B.settings.w, B.settings.h, '设 置', 'outlined', { icon: 'settings' });
   } finally { ctx.restore(); }
 
   ctx.save();
   try {
     ctx.globalAlpha = btnA2;
-    mdButton(B.restart.x, B.restart.y, B.restart.w, B.restart.h, '重 开', 'tonal');
-    mdButton(B.home.x, B.home.y, B.home.w, B.home.h, '返回主菜单', 'destructive');
+    mdButton(B.restart.x, B.restart.y, B.restart.w, B.restart.h, '重 开', 'tonal', { icon: 'refresh' });
+    mdButton(B.home.x, B.home.y, B.home.w, B.home.h, '返回主菜单', 'destructive', { icon: 'home' });
   } finally { ctx.restore(); }
 
   /* [v1.7p] 暂停也画 toast：重生被拒（金币不足）的反馈必须当场可见 ——
@@ -13238,17 +13986,17 @@ function resetGame() {
   resetHpGhost();
   player.x = W / 2; player.y = H - 60; player.cool = 0; player.inv = 1.5; player.alive = true; player.respawn = 0;
   player.power = 1; player.shield = 0; player.shieldPulse = 0; player.shieldBreak = 0; player.spread = 0; player.weapon = 0; player.boomCount = 1;
-  rebirths = 0; rebirthGrace = 0;   // [v1.7p/q] 重生是局内机制，每局从零开始
   upgradePanel.active = false; upgradePanel.options = [];
   // 子页面状态：startGame 走的是 resetGame，之前只加在 returnToMenu 里，
   // 导致"图鉴页 tab=1 时直接开始游戏"会带着旧 tab 进下一局
   achPageActive = false; codexPage.active = false; codexPage.tab = 0;
   settingsPageActive = false; resetConfirm = false;
-  codexClosing = settingsClosing = achClosing = false;
-  animInstant('codex'); animInstant('settings'); animInstant('ach');
+  codexClosing = settingsClosing = achClosing = updClosing = false;
+  animInstant('codex'); animInstant('settings'); animInstant('ach'); animInstant('update');
   uiStack.length = 0;
   banner.text = ''; banner.sub = ''; banner.t = 0; pointer.active = false; paused = false; pauseClosing = false; pauseT = 0;
   debris = []; runKills = 0; muzzles = []; menuFall = 1; restartFade = 1; pauseClosing = false; itemCounts = [0, 0, 0, 0, 0]; slowT = 0; dmgMul = 1; statusId = null; statusT = 0; dodgeCd = 0;
+  dailyMode = false;   // [v1.8] 每日挑战标记回到普通局
   resetHpGhost();
   runShots = 0; runHits = 0; runPowerups = 0; runSwitches = 0;
   runTrend = []; trendClock = 0; trendMetric = 0;
@@ -13268,6 +14016,24 @@ function resetGame() {
   saveStats();
   startWave(1);
 }
+/* ===== [v1.8] 每日挑战 =====
+   按公历日期确定同一副牌（今日武器）：同一天里全世界玩家打的是同一种开局，
+   打完全部返 +3 芯片。不锁武器切换 —— 挑战只是"开局条件"，不是镣铐。 */
+let dailyMode = false;
+function dailySpec() {
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return { seed: seed, weapon: seed % WEAPON_COUNT };
+}
+function startDailyGame() {
+  startGame();
+  dailyMode = true;
+  const sp = dailySpec();
+  player.weapon = sp.weapon; weaponUsed[sp.weapon] = true; checkAllWeapons();
+  pushToast('每日挑战', '今日武器：' + WEAPONS[sp.weapon].name, 'coin');
+  banner.text = '每日挑战'; banner.sub = '通关返 +3 芯片'; banner.color = 'coin'; banner.t = 2.2;
+}
+
 function startGame() {
   /* 从主菜单进入才垮：结算页"再来一局"、暂停里"重开"都没有主菜单可垮，
      那些场景播这个动画会变成凭空掉下来一块菜单。
@@ -13285,6 +14051,23 @@ function startGame() {
   Audio.init(); Audio.resume(); Audio.startBGM();
   resetGame();
   runChips0 = progress.chips;   // [v1.7] 本局获得芯片 = 结算时存量 - 开局存量
+  /* [v1.8] 军备在开局结账：给完即清库存，不跨局累积。 */
+  const armTotal = ARMORY_SLOTS.reduce((n, s) => n + (armory[s.id] || 0), 0);
+  if (armTotal > 0) {
+    const parts = [];
+    if (armory.coins > 0) { state.coins += armory.coins * 100; parts.push('金币 +' + armory.coins * 100); }
+    if (armory.shield > 0) { gainShield(armory.shield * 50); parts.push('护盾 +' + armory.shield * 50); }
+    if (armory.power > 0) { player.power = Math.min(4, player.power + armory.power); parts.push('火力 Lv' + player.power); }
+    if (armory.drone > 0) {
+      const addD = Math.min(MAX_DRONES - drones.length, armory.drone);
+      for (let i = 0; i < addD; i++) drones.push({ offX: drones.length === 0 ? -13 : 13, offY: 4, cool: 0 });
+      if (addD > 0) parts.push('僚机 ×' + addD);
+    }
+    if (armory.ult > 0) { ultCd = 0; parts.push('超载就绪'); }
+    pushToast('军备已应用', parts.join(' · '), 'coin');
+    for (const s of ARMORY_SLOTS) armory[s.id] = 0;
+    saveProgress();
+  }
   state.mode = MODE_PLAY;
   /* 垮掉在 resetGame() **之后**启动：resetGame 里也把 menuFall 重置为 1，
      写在它之前会被覆盖，动画永远不播。 */
@@ -13321,6 +14104,7 @@ function gameOver() {
   /* 伤害卡返芯片：必须在 dmgMul 归位之前结算（它在 startGame 里重置），
      这里读到的仍是本局买的张数。 */
   const refunded = refundDmgCardChips();
+  if (dailyMode) { addChips(3); addFloatText(player.x, player.y - 26, '每日挑战 +3 芯片', 'chip', 1.3); }   // [v1.8]
   saveStats(); saveLastRun();
   /* kind 只有 crit / kill / dmg 三条特殊分支，其余走默认渲染；
      这里不新造一个 kind 值，避免给绘制分支增加无意义的枚举。 */
@@ -13347,8 +14131,8 @@ function returnToMenu() {
   upgradePanel.active = false; upgradePanel.options = [];
   achPageActive = false; codexPage.active = false; codexPage.tab = 0;
   settingsPageActive = false; resetConfirm = false;
-  codexClosing = settingsClosing = achClosing = false;
-  animInstant('codex'); animInstant('settings'); animInstant('ach');
+  codexClosing = settingsClosing = achClosing = updClosing = false;
+  animInstant('codex'); animInstant('settings'); animInstant('ach'); animInstant('update');
   uiStack.length = 0;
   /* [v1.7c 特效清零] toast 栈归零：返回主菜单时带着未到期的提示没有意义
      （菜单不画 toast，残留只会埋到下一局开局头几帧冒出来）。 */
@@ -13494,8 +14278,22 @@ canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType === 'touch' || e.pointerType === 'pen') isTouch = true;
   else if (e.pointerType === 'mouse') isTouch = false;
   const p = toGameCoords(e.clientX, e.clientY);
+  /* [v1.8] 更新页拖动滚动：指针按住列表上下滑。 */
+  if (updDragging) {
+    if (Math.abs(p.y - updStartY) > 6) updMoved = true;
+    updScroll = mdClamp(updScroll - (p.y - updLastY), 0, updMaxScroll);
+    updLastY = p.y; return;
+  }
   if (MENU_VOL_CTRL.dragging) { updateVolumeFromX(p.x); return; }
   if (setVolDragging && settingsPageActive) { setVolumeFromPointer(p.x); return; }
+  if (bgDrag && settingsPageActive) {
+    const t = (bgDrag === 'alpha' ? SET_BTN.bgalpha : SET_BTN.bgblur).track;
+    if (t) {
+      const v = mdClamp((p.x - t.x) / t.w, 0, 1);
+      if (bgDrag === 'alpha') setBgAlpha(v); else setBgBlur(v * 12);
+    }
+    return;
+  }
   const info = activePointers.get(e.pointerId);
   if (isTouch) {
     /* 光判断"自己是非按钮手指"还不够 —— 那只能证明它不是按钮，
@@ -13516,6 +14314,13 @@ canvas.addEventListener('pointermove', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   MENU_VOL_CTRL.dragging = false;
   setVolDragging = false;
+  bgDrag = null;
+  /* [v1.8] 更新页轻点开卡：移动没超过阈值才算"点"，点了就弹详情窗。 */
+  if (updDragging && !updMoved && updPressV != null) {
+    const hit = VERSION_LOG.find(e => e.v === updPressV);
+    if (hit) { updDetail = hit; uiOpen('verd'); }
+  }
+  updDragging = false; updPressV = null;
   activePointers.delete(e.pointerId);
   if (activePointers.size === 0) { pointerDown = false; pointer.active = false; }
   else {
@@ -13650,6 +14455,7 @@ refreshShieldMax();
    "Cannot access ... before initialization"，整个脚本静默失效。
    放在末尾、resize() 之前：此时所有声明已完成，且早于第一帧。 */
 loadQualityMode();
+loadBgCfg();           // [v1.8] 主菜单自定义背景图
 resize();
 requestAnimationFrame(loop);
 
